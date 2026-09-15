@@ -1,0 +1,6 @@
+{
+  "name": "Kids Zoological Safari",
+  "description": "An interactive high-definition animal exploration app for kids featuring crisp HD photos, animal sounds, spoken pronunciations, and sea wildlife.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
