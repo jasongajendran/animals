@@ -134,7 +134,7 @@ export const AnimalGuessGame: React.FC = () => {
 
               <div className="relative aspect-4/3 w-full overflow-hidden rounded-xl bg-slate-100 mb-2.5">
                 <Image
-                  src={opt.imageUrl}
+                  src={`${process.env.NEXT_PUBLIC_BASE_PATH || ''}${opt.imageUrl}`}
                   alt={opt.name}
                   fill
                   unoptimized

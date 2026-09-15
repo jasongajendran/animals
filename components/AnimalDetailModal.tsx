@@ -125,7 +125,7 @@ export const AnimalDetailModal: React.FC<AnimalDetailModalProps> = ({
                 </div>
               ) : (
                 <Image
-                  src={animal.imageUrl}
+                  src={`${process.env.NEXT_PUBLIC_BASE_PATH || ''}${animal.imageUrl}`}
                   alt={animal.name}
                   fill
                   unoptimized

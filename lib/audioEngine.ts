@@ -2,6 +2,43 @@
 // Provides authentic animal audio recordings, young British female narration, and gentle background melodies.
 
 const ANIMAL_AUDIO_MAP: Record<string, string> = {
+  goat: 'https://actions.google.com/sounds/v1/animals/sheep_bleat.ogg',
+  donkey: 'https://actions.google.com/sounds/v1/animals/horse_whinny.ogg',
+  llama: 'https://actions.google.com/sounds/v1/animals/sheep_bleat.ogg',
+  alpaca: 'https://actions.google.com/sounds/v1/animals/sheep_bleat.ogg',
+  goose: 'https://actions.google.com/sounds/v1/animals/duck_quack.ogg',
+  buffalo: 'https://actions.google.com/sounds/v1/animals/cow_moo.ogg',
+  ox: 'https://actions.google.com/sounds/v1/animals/cow_moo.ogg',
+  camel: 'https://actions.google.com/sounds/v1/animals/horse_whinny.ogg',
+  gorilla: 'https://upload.wikimedia.org/wikipedia/commons/a/a2/Chimpanzee_pant-hoot.ogg',
+  rhino: 'https://actions.google.com/sounds/v1/animals/pig_grunt.ogg',
+  koala: 'https://actions.google.com/sounds/v1/animals/bear_growl.ogg',
+  panda: 'https://actions.google.com/sounds/v1/animals/bear_growl.ogg',
+  sloth: 'https://actions.google.com/sounds/v1/animals/cat_purr.ogg',
+  leopard: 'https://actions.google.com/sounds/v1/animals/lion_roar.ogg',
+  hyena: 'https://actions.google.com/sounds/v1/animals/distant_dog_barking.ogg',
+  fox: 'https://actions.google.com/sounds/v1/animals/wolf_howl.ogg',
+  raccoon: 'https://actions.google.com/sounds/v1/animals/mouse_squeak.ogg',
+  moose: 'https://actions.google.com/sounds/v1/animals/cow_moo.ogg',
+  deer: 'https://actions.google.com/sounds/v1/animals/cow_moo.ogg',
+  reindeer: 'https://actions.google.com/sounds/v1/animals/cow_moo.ogg',
+  boar: 'https://actions.google.com/sounds/v1/animals/pig_grunt.ogg',
+  bison: 'https://actions.google.com/sounds/v1/animals/cow_moo.ogg',
+  wolverine: 'https://actions.google.com/sounds/v1/animals/bear_growl.ogg',
+  orca: 'https://actions.google.com/sounds/v1/animals/dolphin_call.ogg',
+  beluga: 'https://actions.google.com/sounds/v1/animals/dolphin_call.ogg',
+  penguin: 'https://actions.google.com/sounds/v1/animals/duck_quack.ogg',
+  crow: 'https://actions.google.com/sounds/v1/animals/crow_cawing.ogg',
+  raven: 'https://actions.google.com/sounds/v1/animals/crow_cawing.ogg',
+  fly: 'https://actions.google.com/sounds/v1/animals/fly_buzzing.ogg',
+  bee: 'https://actions.google.com/sounds/v1/animals/bee_buzzing.ogg',
+  mosquito: 'https://actions.google.com/sounds/v1/animals/fly_buzzing.ogg',
+  cricket: 'https://actions.google.com/sounds/v1/animals/cricket_chirping.ogg',
+  snake: 'https://actions.google.com/sounds/v1/animals/snake_hiss.ogg',
+  frog: 'https://actions.google.com/sounds/v1/animals/frog_croak.ogg',
+  monkey: 'https://upload.wikimedia.org/wikipedia/commons/a/a2/Chimpanzee_pant-hoot.ogg',
+  bat: 'https://actions.google.com/sounds/v1/animals/mouse_squeak.ogg',
+
   cow: 'https://actions.google.com/sounds/v1/animals/cow_moo.ogg',
   pig: 'https://actions.google.com/sounds/v1/animals/pig_grunt.ogg',
   sheep: 'https://actions.google.com/sounds/v1/animals/sheep_bleat.ogg',
@@ -11,14 +48,12 @@ const ANIMAL_AUDIO_MAP: Record<string, string> = {
   rooster: 'https://actions.google.com/sounds/v1/animals/rooster_crowing.ogg',
   dog: 'https://actions.google.com/sounds/v1/animals/distant_dog_barking.ogg',
   cat: 'https://actions.google.com/sounds/v1/animals/cat_purr.ogg',
-  frog: 'https://actions.google.com/sounds/v1/animals/frog_croak.ogg',
   lion: 'https://actions.google.com/sounds/v1/animals/lion_roar.ogg',
   tiger: 'https://upload.wikimedia.org/wikipedia/commons/e/ec/Panthera_leo_roar.ogg',
   elephant: 'https://actions.google.com/sounds/v1/animals/elephant_trumpet.ogg',
   giraffe: 'https://actions.google.com/sounds/v1/animals/horse_whinny.ogg',
   cheetah: 'https://actions.google.com/sounds/v1/animals/cat_purr.ogg',
   hippo: 'https://actions.google.com/sounds/v1/animals/pig_grunt.ogg',
-  monkey: 'https://upload.wikimedia.org/wikipedia/commons/a/a2/Chimpanzee_pant-hoot.ogg',
   chimpanzee: 'https://upload.wikimedia.org/wikipedia/commons/a/a2/Chimpanzee_pant-hoot.ogg',
   zebra: 'https://actions.google.com/sounds/v1/animals/horse_whinny.ogg',
   bear: 'https://actions.google.com/sounds/v1/animals/bear_growl.ogg',
@@ -40,44 +75,6 @@ const ANIMAL_AUDIO_MAP: Record<string, string> = {
 };
 
 // Fallback onomatopoeic speech vocalizations when audio element is restricted
-const ANIMAL_VOICE_SOUNDS: Record<string, string> = {
-  cow: 'Moo moo!',
-  pig: 'Oink oink!',
-  sheep: 'Baaa baaa!',
-  horse: 'Neigh! Whinny!',
-  duck: 'Quack quack!',
-  chicken: 'Cluck cluck! Cock-a-doodle-doo!',
-  rooster: 'Cock-a-doodle-doo!',
-  dog: 'Woof woof! Bark!',
-  cat: 'Meow! Purr purr!',
-  frog: 'Ribbit ribbit! Croak!',
-  lion: 'Rrrrroar! Mighty roar!',
-  tiger: 'Roar! Chuff chuff!',
-  elephant: 'Pawoo! Trumpet!',
-  giraffe: 'Mmm-hmm!',
-  cheetah: 'Purr! Chirp chirp!',
-  hippo: 'Grunt grunt! Splash!',
-  monkey: 'Ooh ooh! Aah aah!',
-  chimpanzee: 'Ooh ooh aah aah!',
-  zebra: 'Neigh bray!',
-  bear: 'Grrrr growl!',
-  wolf: 'Awoooo! Howl!',
-  dolphin: 'Click click! Eee-eee!',
-  whale: 'Aaaaoooouuum! Deep ocean song!',
-  clownfish: 'Bloop bloop bubbles!',
-  turtle: 'Splish splash!',
-  shark: 'Whoosh surge!',
-  octopus: 'Bloop swish!',
-  otter: 'Chirp squeak!',
-  jellyfish: 'Gently floating chime!',
-  toucan: 'Croak croak! Rainforest call!',
-  macaw: 'Squawk squawk! Hello!',
-  flamingo: 'Honk honk!',
-  owl: 'Twit twoo! Hoot hoot!',
-  eagle: 'Screeech! High soar!',
-  puffin: 'Growl chirp!',
-};
-
 class AudioEngine {
   private isMuted: boolean = false;
   private volume: number = 0.85;
@@ -223,7 +220,24 @@ class AudioEngine {
     this.stopSpeaking();
     this.stopCurrentAudio();
 
-    const audioUrl = ANIMAL_AUDIO_MAP[soundType.toLowerCase()];
+    // Map unknown soundTypes to generic categories or default silent if not found
+    let audioUrl = ANIMAL_AUDIO_MAP[soundType.toLowerCase()];
+    
+    // Auto-map some categories if missing
+    if (!audioUrl) {
+      const birds = ['canary', 'parrot', 'toucan', 'macaw', 'flamingo', 'stork', 'pelican', 'peacock', 'swan', 'puffin', 'eagle', 'owl', 'ostrich', 'emu', 'kiwi', 'woodpecker', 'hummingbird', 'pigeon', 'crow', 'raven', 'dove', 'seagull', 'vulture', 'falcon', 'hawk', 'turkey'];
+      const bugs = ['butterfly', 'bee', 'ladybug', 'ant', 'spider', 'scorpion', 'mosquito', 'fly', 'beetle', 'cockroach', 'cricket', 'caterpillar', 'snail', 'worm'];
+      const smallAnimals = ['mouse', 'rat', 'hamster', 'guinea_pig', 'ferret', 'chinchilla', 'squirrel', 'chipmunk', 'hedgehog', 'skunk', 'badger', 'rabbit', 'meerkat', 'mongoose'];
+      const sea = ['dolphin', 'whale', 'orca', 'beluga', 'walrus', 'seal', 'penguin', 'manatee', 'crab', 'lobster', 'shrimp', 'squid', 'stingray', 'seahorse', 'starfish', 'coral', 'blowfish'];
+      const reptiles = ['snake', 'turtle', 'lizard', 'iguana', 'chameleon', 'crocodile', 'alligator'];
+      
+      if (birds.includes(soundType)) audioUrl = 'https://actions.google.com/sounds/v1/animals/bird_call.ogg';
+      else if (bugs.includes(soundType)) audioUrl = 'https://actions.google.com/sounds/v1/animals/cricket_chirping.ogg';
+      else if (smallAnimals.includes(soundType)) audioUrl = 'https://actions.google.com/sounds/v1/animals/mouse_squeak.ogg';
+      else if (sea.includes(soundType)) audioUrl = 'https://actions.google.com/sounds/v1/water/water_bubbles.ogg';
+      else if (reptiles.includes(soundType)) audioUrl = 'https://actions.google.com/sounds/v1/animals/snake_hiss.ogg';
+      else audioUrl = 'https://actions.google.com/sounds/v1/animals/distant_dog_barking.ogg'; // Generic fallback for large mammals
+    }
 
     if (audioUrl && typeof window !== 'undefined') {
       try {
@@ -238,30 +252,23 @@ class AudioEngine {
 
         audio.onerror = () => {
           this.currentAudio = null;
-          // Fallback to clear onomatopoeic speech vocalization
-          this.speakAnimalVocalization(soundType, onEnded);
+          if (onEnded) onEnded();
         };
 
         const playPromise = audio.play();
         if (playPromise !== undefined) {
           playPromise.catch(() => {
-            // If autoplay was blocked or audio failed, use speech vocalization fallback
-            this.speakAnimalVocalization(soundType, onEnded);
+            if (onEnded) onEnded();
           });
         }
         return;
       } catch {
-        this.speakAnimalVocalization(soundType, onEnded);
+        if (onEnded) onEnded();
         return;
       }
+    } else {
+      if (onEnded) onEnded();
     }
-
-    this.speakAnimalVocalization(soundType, onEnded);
-  }
-
-  private speakAnimalVocalization(soundType: string, onEnded?: () => void) {
-    const voiceText = ANIMAL_VOICE_SOUNDS[soundType.toLowerCase()] || 'Roar!';
-    this.speakText(voiceText, 1.0, 1.25, onEnded);
   }
 
   public stopCurrentAudio() {

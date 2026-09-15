@@ -78,7 +78,7 @@ export const AnimalCard: React.FC<AnimalCardProps> = ({ animal, onSelect }) => {
       {/* Image container */}
       <div
         onClick={handlePlaySound}
-        className="relative aspect-4/3 w-full overflow-hidden rounded-xl bg-slate-100 cursor-pointer"
+        className="relative aspect-[3/2] sm:aspect-[16/10] w-full overflow-hidden rounded-xl bg-slate-100 cursor-pointer"
       >
         {(!imageLoaded || hasError) && (
           <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-100/90 z-0">
@@ -87,7 +87,7 @@ export const AnimalCard: React.FC<AnimalCardProps> = ({ animal, onSelect }) => {
         )}
         {!hasError && (
           <Image
-            src={animal.imageUrl}
+            src={`${process.env.NEXT_PUBLIC_BASE_PATH || ''}${animal.imageUrl}`}
             alt={animal.name}
             fill
             unoptimized
@@ -103,10 +103,10 @@ export const AnimalCard: React.FC<AnimalCardProps> = ({ animal, onSelect }) => {
 
       {/* Animal Name */}
       <div className="mt-3 flex items-center justify-between px-0.5">
-        <h3 className="text-lg font-bold text-slate-900 leading-tight flex items-center gap-1.5">
+        <h3 className="text-xl sm:text-2xl font-bold text-slate-900 leading-tight flex items-center gap-1.5">
           <span>{animal.name}</span>
         </h3>
-        <span className="text-xl select-none">{animal.emoji}</span>
+        <span className="text-2xl sm:text-3xl select-none">{animal.emoji}</span>
       </div>
 
       {/* Action Buttons */}
@@ -115,16 +115,16 @@ export const AnimalCard: React.FC<AnimalCardProps> = ({ animal, onSelect }) => {
           id={`btn-sound-${animal.id}`}
           onClick={handlePlaySound}
           aria-label={`Sound for ${animal.name}`}
-          className={`flex items-center justify-center gap-1.5 rounded-xl py-2 px-3 text-xs font-bold transition-all active:scale-95 ${
+          className={`flex items-center justify-center gap-2 rounded-xl py-2.5 px-4 text-sm font-bold transition-all active:scale-95 ${
             isPlayingSound
               ? 'bg-amber-400 text-amber-950 ring-2 ring-amber-300'
               : 'bg-amber-50 text-amber-900 hover:bg-amber-100 border border-amber-200/60'
           }`}
         >
           {isPlayingSound ? (
-            <Sparkles className="h-3.5 w-3.5 animate-spin text-amber-950" />
+            <Sparkles className="h-4 w-4 sm:h-5 sm:w-5 animate-spin text-amber-950" />
           ) : (
-            <Volume2 className="h-3.5 w-3.5 text-amber-700" />
+            <Volume2 className="h-4 w-4 sm:h-5 sm:w-5 text-amber-700" />
           )}
           <span>Sound</span>
         </button>
@@ -133,13 +133,13 @@ export const AnimalCard: React.FC<AnimalCardProps> = ({ animal, onSelect }) => {
           id={`btn-fact-${animal.id}`}
           onClick={handleReadFact}
           aria-label={`Fact for ${animal.name}`}
-          className={`flex items-center justify-center gap-1.5 rounded-xl py-2 px-3 text-xs font-bold transition-all active:scale-95 ${
+          className={`flex items-center justify-center gap-2 rounded-xl py-2.5 px-4 text-sm font-bold transition-all active:scale-95 ${
             isReadingFact
               ? 'bg-sky-400 text-sky-950 ring-2 ring-sky-300'
               : 'bg-slate-100 text-slate-800 hover:bg-slate-200 border border-slate-200'
           }`}
         >
-          <BookOpen className="h-3.5 w-3.5 text-slate-600" />
+          <BookOpen className="h-4 w-4 sm:h-5 sm:w-5 text-slate-600" />
           <span>{isReadingFact ? 'Playing...' : 'Fact'}</span>
         </button>
       </div>
