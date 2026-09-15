@@ -57,10 +57,13 @@ export default function Home() {
     let cancelled = false;
     if (isAutoReading && autoReadIndex >= 0 && autoReadIndex < filteredAnimals.length) {
       const animal = filteredAnimals[autoReadIndex];
-      setSelectedAnimal(animal);
+      const timer = setTimeout(() => {
+        if (cancelled) return;
+        setSelectedAnimal(animal);
+      }, 0);
       
       // Delay before speaking so modal can open
-      setTimeout(() => {
+      const speechTimer = setTimeout(() => {
         if (cancelled) return;
         audioEngine.speakText(animal.name, 0.95, 1.1, () => {
           if (cancelled) return;
@@ -76,9 +79,23 @@ export default function Home() {
           }, 400);
         });
       }, 500);
+
+      return () => {
+        cancelled = true;
+        clearTimeout(timer);
+        clearTimeout(speechTimer);
+      };
     } else if (isAutoReading && autoReadIndex >= filteredAnimals.length) {
-      setIsAutoReading(false);
-      setAutoReadIndex(-1);
+      const resetTimer = setTimeout(() => {
+        if (cancelled) return;
+        setIsAutoReading(false);
+        setAutoReadIndex(-1);
+      }, 0);
+
+      return () => {
+        cancelled = true;
+        clearTimeout(resetTimer);
+      };
     }
     return () => {
       cancelled = true;

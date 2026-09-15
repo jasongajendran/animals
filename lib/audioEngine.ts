@@ -220,26 +220,13 @@ class AudioEngine {
     this.stopSpeaking();
     this.stopCurrentAudio();
 
-    // Map unknown soundTypes to generic categories or default silent if not found
-    let audioUrl = ANIMAL_AUDIO_MAP[soundType.toLowerCase()];
-    
-    // Auto-map some categories if missing
-    if (!audioUrl) {
-      const birds = ['canary', 'parrot', 'toucan', 'macaw', 'flamingo', 'stork', 'pelican', 'peacock', 'swan', 'puffin', 'eagle', 'owl', 'ostrich', 'emu', 'kiwi', 'woodpecker', 'hummingbird', 'pigeon', 'crow', 'raven', 'dove', 'seagull', 'vulture', 'falcon', 'hawk', 'turkey'];
-      const bugs = ['butterfly', 'bee', 'ladybug', 'ant', 'spider', 'scorpion', 'mosquito', 'fly', 'beetle', 'cockroach', 'cricket', 'caterpillar', 'snail', 'worm'];
-      const smallAnimals = ['mouse', 'rat', 'hamster', 'guinea_pig', 'ferret', 'chinchilla', 'squirrel', 'chipmunk', 'hedgehog', 'skunk', 'badger', 'rabbit', 'meerkat', 'mongoose'];
-      const sea = ['dolphin', 'whale', 'orca', 'beluga', 'walrus', 'seal', 'penguin', 'manatee', 'crab', 'lobster', 'shrimp', 'squid', 'stingray', 'seahorse', 'starfish', 'coral', 'blowfish'];
-      const reptiles = ['snake', 'turtle', 'lizard', 'iguana', 'chameleon', 'crocodile', 'alligator'];
-      
-      if (birds.includes(soundType)) audioUrl = 'https://actions.google.com/sounds/v1/animals/bird_call.ogg';
-      else if (bugs.includes(soundType)) audioUrl = 'https://actions.google.com/sounds/v1/animals/cricket_chirping.ogg';
-      else if (smallAnimals.includes(soundType)) audioUrl = 'https://actions.google.com/sounds/v1/animals/mouse_squeak.ogg';
-      else if (sea.includes(soundType)) audioUrl = 'https://actions.google.com/sounds/v1/water/water_bubbles.ogg';
-      else if (reptiles.includes(soundType)) audioUrl = 'https://actions.google.com/sounds/v1/animals/snake_hiss.ogg';
-      else audioUrl = 'https://actions.google.com/sounds/v1/animals/distant_dog_barking.ogg'; // Generic fallback for large mammals
-    }
+    const basePath = typeof window !== 'undefined' && (window as unknown as { __NEXT_ROUTER_BASE_PATH?: string }).__NEXT_ROUTER_BASE_PATH
+      ? (window as unknown as { __NEXT_ROUTER_BASE_PATH?: string }).__NEXT_ROUTER_BASE_PATH
+      : '';
+    const cleanSoundType = soundType.toLowerCase().replace(/[^a-z0-9_-]/g, '');
+    const audioUrl = `${basePath}/assets/sounds/${cleanSoundType}.ogg`;
 
-    if (audioUrl && typeof window !== 'undefined') {
+    if (typeof window !== 'undefined') {
       try {
         const audio = new Audio(audioUrl);
         audio.volume = this.volume;
@@ -252,7 +239,34 @@ class AudioEngine {
 
         audio.onerror = () => {
           this.currentAudio = null;
-          if (onEnded) onEnded();
+          // Fallback to category sound
+          const birds = ['canary', 'parrot', 'toucan', 'macaw', 'flamingo', 'stork', 'pelican', 'peacock', 'swan', 'puffin', 'eagle', 'owl', 'ostrich', 'emu', 'kiwi', 'woodpecker', 'hummingbird', 'pigeon', 'crow', 'raven', 'dove', 'seagull', 'vulture', 'falcon', 'hawk', 'turkey'];
+          const bugs = ['butterfly', 'bee', 'ladybug', 'ant', 'spider', 'scorpion', 'mosquito', 'fly', 'beetle', 'cockroach', 'cricket', 'caterpillar', 'snail', 'worm'];
+          const sea = ['dolphin', 'whale', 'orca', 'beluga', 'walrus', 'seal', 'penguin', 'manatee', 'crab', 'lobster', 'shrimp', 'squid', 'stingray', 'seahorse', 'starfish', 'coral', 'blowfish'];
+          const reptiles = ['snake', 'turtle', 'lizard', 'iguana', 'chameleon', 'crocodile', 'alligator'];
+
+          let fallbackType = 'cow';
+          if (birds.includes(cleanSoundType)) fallbackType = 'duck';
+          else if (bugs.includes(cleanSoundType)) fallbackType = 'bee';
+          else if (sea.includes(cleanSoundType)) fallbackType = 'dolphin';
+          else if (reptiles.includes(cleanSoundType)) fallbackType = 'snake';
+
+          const fbAudio = new Audio(`${basePath}/assets/sounds/${fallbackType}.ogg`);
+          fbAudio.volume = this.volume;
+          this.currentAudio = fbAudio;
+          fbAudio.onended = () => {
+            this.currentAudio = null;
+            if (onEnded) onEnded();
+          };
+          fbAudio.onerror = () => {
+            this.currentAudio = null;
+            if (onEnded) onEnded();
+          };
+          
+          const playPromise = fbAudio.play();
+          if (playPromise !== undefined) {
+            playPromise.catch(() => { if (onEnded) onEnded(); });
+          }
         };
 
         const playPromise = audio.play();
@@ -433,7 +447,7 @@ class AudioEngine {
     }
   }
 
-  // --- SPEAK FUN FACT WITH SOFT BACKGROUND MUSIC ---
+  // --- SPEAK FUN FACT (CRYSTAL CLEAR BRITISH FEMALE VOICE) ---
   public speakFunFact(
     text: string,
     onStart?: () => void,
@@ -453,7 +467,6 @@ class AudioEngine {
     try {
       this.stopSpeaking();
       this.stopCurrentAudio();
-      this.startBackgroundMusic();
 
       const utterance = new SpeechSynthesisUtterance(text);
       utterance.rate = 0.92;
@@ -471,7 +484,6 @@ class AudioEngine {
       };
 
       const cleanup = () => {
-        this.stopBackgroundMusic();
         if (onEnd) onEnd();
       };
 
@@ -480,7 +492,6 @@ class AudioEngine {
 
       window.speechSynthesis.speak(utterance);
     } catch {
-      this.stopBackgroundMusic();
       if (onEnd) onEnd();
     }
   }

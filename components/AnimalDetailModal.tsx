@@ -47,10 +47,6 @@ export const AnimalDetailModal: React.FC<AnimalDetailModalProps> = ({
       origin: { y: 0.6 },
       colors: ['#F59E0B', '#10B981', '#3B82F6', '#EC4899'],
     });
-
-    setTimeout(() => {
-      setIsPlayingSound(false);
-    }, 1200);
   };
 
   const handleSpeakName = () => {

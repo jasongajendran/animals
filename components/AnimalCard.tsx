@@ -40,10 +40,6 @@ export const AnimalCard: React.FC<AnimalCardProps> = ({ animal, onSelect }) => {
       gravity: 1.2,
       scalar: 0.8,
     });
-
-    setTimeout(() => {
-      setIsPlayingSound(false);
-    }, 1200);
   };
 
   const handleReadFact = (e: React.MouseEvent) => {
