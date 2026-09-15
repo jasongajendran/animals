@@ -220,15 +220,69 @@ class AudioEngine {
     this.stopSpeaking();
     this.stopCurrentAudio();
 
-    const basePath = typeof window !== 'undefined' && (window as unknown as { __NEXT_ROUTER_BASE_PATH?: string }).__NEXT_ROUTER_BASE_PATH
-      ? (window as unknown as { __NEXT_ROUTER_BASE_PATH?: string }).__NEXT_ROUTER_BASE_PATH
-      : '';
-    const cleanSoundType = soundType.toLowerCase().replace(/[^a-z0-9_-]/g, '');
-    const audioUrl = `${basePath}/assets/sounds/${cleanSoundType}.ogg`;
+    if (typeof window === 'undefined') {
+      if (onEnded) onEnded();
+      return;
+    }
 
-    if (typeof window !== 'undefined') {
+    const cleanSoundType = soundType.toLowerCase().replace(/[^a-z0-9_-]/g, '');
+
+    // Get dynamic URLs compatible with GitHub Pages, Cloud Run, and Vercel
+    const getCandidateUrls = (type: string): string[] => {
+      const href = window.location.href;
+      const baseUrl = href.endsWith('/') ? href : href.substring(0, href.lastIndexOf('/') + 1);
+      const urls: string[] = [];
+
       try {
-        const audio = new Audio(audioUrl);
+        urls.push(new URL(`assets/sounds/${type}.mp3`, baseUrl).href);
+        urls.push(new URL(`assets/sounds/${type}.ogg`, baseUrl).href);
+      } catch {
+        // fallback
+      }
+
+      const nextBasePath = (window as unknown as { __NEXT_ROUTER_BASE_PATH?: string }).__NEXT_ROUTER_BASE_PATH || '';
+      if (nextBasePath) {
+        urls.push(`${nextBasePath}/assets/sounds/${type}.mp3`);
+        urls.push(`${nextBasePath}/assets/sounds/${type}.ogg`);
+      }
+
+      urls.push(`./assets/sounds/${type}.mp3`);
+      urls.push(`./assets/sounds/${type}.ogg`);
+      urls.push(`/assets/sounds/${type}.mp3`);
+      urls.push(`/assets/sounds/${type}.ogg`);
+
+      return Array.from(new Set(urls));
+    };
+
+    const candidates = getCandidateUrls(cleanSoundType);
+
+    // Categories fallback mapping
+    const birds = ['canary', 'parrot', 'toucan', 'macaw', 'flamingo', 'stork', 'pelican', 'peacock', 'swan', 'puffin', 'eagle', 'owl', 'ostrich', 'emu', 'kiwi', 'woodpecker', 'hummingbird', 'pigeon', 'crow', 'raven', 'dove', 'seagull', 'vulture', 'falcon', 'hawk', 'turkey'];
+    const bugs = ['butterfly', 'bee', 'ladybug', 'ant', 'spider', 'scorpion', 'mosquito', 'fly', 'beetle', 'cockroach', 'cricket', 'caterpillar', 'snail', 'worm'];
+    const sea = ['dolphin', 'whale', 'orca', 'beluga', 'walrus', 'seal', 'penguin', 'manatee', 'crab', 'lobster', 'shrimp', 'squid', 'stingray', 'seahorse', 'starfish', 'coral', 'blowfish'];
+    const reptiles = ['snake', 'turtle', 'lizard', 'iguana', 'chameleon', 'crocodile', 'alligator'];
+
+    let fallbackType = 'cow';
+    if (birds.includes(cleanSoundType)) fallbackType = 'duck';
+    else if (bugs.includes(cleanSoundType)) fallbackType = 'bee';
+    else if (sea.includes(cleanSoundType)) fallbackType = 'dolphin';
+    else if (reptiles.includes(cleanSoundType)) fallbackType = 'snake';
+
+    const fallbackCandidates = getCandidateUrls(fallbackType);
+    const allCandidates = [...candidates, ...fallbackCandidates];
+
+    let candidateIndex = 0;
+
+    const playNextCandidate = () => {
+      if (candidateIndex >= allCandidates.length) {
+        // All audio assets failed or media restricted - fall back to young British female vocal onomatopoeia
+        this.speakOnomatopoeia(cleanSoundType, onEnded);
+        return;
+      }
+
+      const currentUrl = allCandidates[candidateIndex++];
+      try {
+        const audio = new Audio(currentUrl);
         audio.volume = this.volume;
         this.currentAudio = audio;
 
@@ -239,50 +293,49 @@ class AudioEngine {
 
         audio.onerror = () => {
           this.currentAudio = null;
-          // Fallback to category sound
-          const birds = ['canary', 'parrot', 'toucan', 'macaw', 'flamingo', 'stork', 'pelican', 'peacock', 'swan', 'puffin', 'eagle', 'owl', 'ostrich', 'emu', 'kiwi', 'woodpecker', 'hummingbird', 'pigeon', 'crow', 'raven', 'dove', 'seagull', 'vulture', 'falcon', 'hawk', 'turkey'];
-          const bugs = ['butterfly', 'bee', 'ladybug', 'ant', 'spider', 'scorpion', 'mosquito', 'fly', 'beetle', 'cockroach', 'cricket', 'caterpillar', 'snail', 'worm'];
-          const sea = ['dolphin', 'whale', 'orca', 'beluga', 'walrus', 'seal', 'penguin', 'manatee', 'crab', 'lobster', 'shrimp', 'squid', 'stingray', 'seahorse', 'starfish', 'coral', 'blowfish'];
-          const reptiles = ['snake', 'turtle', 'lizard', 'iguana', 'chameleon', 'crocodile', 'alligator'];
-
-          let fallbackType = 'cow';
-          if (birds.includes(cleanSoundType)) fallbackType = 'duck';
-          else if (bugs.includes(cleanSoundType)) fallbackType = 'bee';
-          else if (sea.includes(cleanSoundType)) fallbackType = 'dolphin';
-          else if (reptiles.includes(cleanSoundType)) fallbackType = 'snake';
-
-          const fbAudio = new Audio(`${basePath}/assets/sounds/${fallbackType}.ogg`);
-          fbAudio.volume = this.volume;
-          this.currentAudio = fbAudio;
-          fbAudio.onended = () => {
-            this.currentAudio = null;
-            if (onEnded) onEnded();
-          };
-          fbAudio.onerror = () => {
-            this.currentAudio = null;
-            if (onEnded) onEnded();
-          };
-          
-          const playPromise = fbAudio.play();
-          if (playPromise !== undefined) {
-            playPromise.catch(() => { if (onEnded) onEnded(); });
-          }
+          playNextCandidate();
         };
 
         const playPromise = audio.play();
         if (playPromise !== undefined) {
           playPromise.catch(() => {
-            if (onEnded) onEnded();
+            this.currentAudio = null;
+            playNextCandidate();
           });
         }
-        return;
       } catch {
-        if (onEnded) onEnded();
-        return;
+        playNextCandidate();
       }
-    } else {
-      if (onEnded) onEnded();
-    }
+    };
+
+    playNextCandidate();
+  }
+
+  // --- BRITISH FEMALE ONOMATOPOEIA FALLBACK ---
+  private speakOnomatopoeia(soundType: string, onEnded?: () => void) {
+    const soundSounds: Record<string, string> = {
+      cow: 'Moo!',
+      horse: 'Neigh!',
+      donkey: 'Hee-haw!',
+      sheep: 'Baa!',
+      goat: 'Maa!',
+      pig: 'Oink oink!',
+      dog: 'Woof woof!',
+      cat: 'Meow!',
+      duck: 'Quack quack!',
+      rooster: 'Cock-a-doodle-doo!',
+      lion: 'Roar!',
+      tiger: 'Roar!',
+      elephant: 'Trumpet call!',
+      wolf: 'Awoo!',
+      frog: 'Ribbit ribbit!',
+      bee: 'Buzzz!',
+      owl: 'Hoot hoot!',
+      snake: 'Hisssss!'
+    };
+
+    const text = soundSounds[soundType] || `${soundType} sound!`;
+    this.speakText(text, 1.0, 1.25, onEnded);
   }
 
   public stopCurrentAudio() {
