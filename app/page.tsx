@@ -8,6 +8,7 @@ import { AnimalCard } from '@/components/AnimalCard';
 import { AnimalDetailModal } from '@/components/AnimalDetailModal';
 import { AnimalGuessGame } from '@/components/AnimalGuessGame';
 import { ScrollToTop } from '@/components/ScrollToTop';
+import { AnimalCelebrationOverlay } from '@/components/AnimalCelebrationOverlay';
 import { ANIMALS, HABITATS, Animal, Habitat } from '@/lib/animalsData';
 import { audioEngine } from '@/lib/audioEngine';
 import { playAnimalCelebration } from '@/lib/animalEffects';
@@ -258,6 +259,7 @@ export default function Home() {
       />
 
       <ScrollToTop />
+      <AnimalCelebrationOverlay />
     </div>
   );
 }

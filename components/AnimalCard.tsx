@@ -59,8 +59,12 @@ export const AnimalCard: React.FC<AnimalCardProps> = ({ animal, onSelect }) => {
       whileHover={{ scale: 1.02, y: -2 }}
       whileTap={{ scale: 0.98 }}
       transition={{ type: 'spring', stiffness: 400, damping: 25 }}
-      onClick={() => {
+      onClick={(e) => {
         audioEngine.playPopSound(440);
+        const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+        const x = (rect.left + rect.width / 2) / window.innerWidth;
+        const y = (rect.top + rect.height / 2) / window.innerHeight;
+        playAnimalCelebration(animal, { x, y });
         onSelect(animal);
       }}
       className={`group relative cursor-pointer overflow-hidden rounded-2xl bg-white p-3.5 shadow-sm transition-all duration-200 hover:shadow-md border ${

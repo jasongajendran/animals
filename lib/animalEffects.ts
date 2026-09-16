@@ -1,580 +1,523 @@
-import confetti from 'canvas-confetti';
+// Event dispatcher and data definitions for crystal-clear, HD animal celebration animations
 
-interface EffectConfig {
-  emojis?: string[];
-  colors: string[];
-  particleCount?: number;
-  spread?: number;
-  gravity?: number;
-  scalar?: number;
-  ticks?: number;
-  drift?: number;
-  startVelocity?: number;
-  specialEffect?: 'fountain' | 'snow' | 'bounce' | 'flutter' | 'spiral' | 'burst';
+export interface AnimalCelebrationData {
+  id: string;
+  name: string;
+  emoji: string;
+  category: string;
+  tagline: string;
+  themeColor: string;
+  accentBg: string;
+  floatingItems: string[]; // Large, high-visibility emojis
+  animationType: 'splash' | 'banana_hop' | 'predator_burst' | 'feather_drift' | 'snow_fall' | 'leaf_flutter' | 'bubble_float' | 'spring_bounce' | 'meadow_bloom';
+  origin: { x: number; y: number }; // Screen coordinate in percentage (0 to 1)
 }
 
-// Animal-specific visual profiles
-const ANIMAL_EFFECT_MAP: Record<string, EffectConfig> = {
-  // === Big Cats ===
+type CelebrationListener = (data: AnimalCelebrationData) => void;
+const listeners: Set<CelebrationListener> = new Set();
+
+export function subscribeCelebration(listener: CelebrationListener) {
+  listeners.add(listener);
+  return () => {
+    listeners.delete(listener);
+  };
+}
+
+interface ThemeConfig {
+  tagline: string;
+  themeColor: string;
+  accentBg: string;
+  floatingItems: string[];
+  animationType: AnimalCelebrationData['animationType'];
+}
+
+// Specific, tailored profiles for animals
+const ANIMAL_PROFILES: Record<string, ThemeConfig> = {
+  // === Big Cats & Apex Predators ===
   lion: {
-    emojis: ['🦁', '🐾', '👑', '✨'],
-    colors: ['#F59E0B', '#D97706', '#B45309', '#FBBF24', '#FEF08A'],
-    spread: 80,
-    scalar: 1.3,
-    startVelocity: 35,
-    specialEffect: 'burst',
+    tagline: 'King of the Jungle!',
+    themeColor: '#D97706',
+    accentBg: 'from-amber-500 to-yellow-600',
+    floatingItems: ['🦁', '👑', '🐾', '🔥', '✨', '🐾'],
+    animationType: 'predator_burst',
   },
   tiger: {
-    emojis: ['🐯', '🐾', '🔥', '⚡'],
-    colors: ['#EA580C', '#C2410C', '#18181B', '#F97316', '#FBBF24'],
-    spread: 85,
-    scalar: 1.25,
-    startVelocity: 38,
-    specialEffect: 'burst',
+    tagline: 'Fierce Tiger Stripes!',
+    themeColor: '#EA580C',
+    accentBg: 'from-orange-500 to-amber-600',
+    floatingItems: ['🐯', '🔥', '🐾', '⚡', '✨', '🐾'],
+    animationType: 'predator_burst',
   },
   cheetah: {
-    emojis: ['🐆', '⚡', '💨', '✨'],
-    colors: ['#EAB308', '#CA8A04', '#18181B', '#FEF08A'],
-    spread: 90,
-    scalar: 1.2,
-    startVelocity: 45,
-    specialEffect: 'burst',
+    tagline: 'Super Speed Dash!',
+    themeColor: '#CA8A04',
+    accentBg: 'from-yellow-500 to-orange-500',
+    floatingItems: ['🐆', '⚡', '💨', '✨', '🐾', '⚡'],
+    animationType: 'predator_burst',
   },
   leopard: {
-    emojis: ['🐆', '🐾', '🌿', '✨'],
-    colors: ['#D97706', '#B45309', '#18181B', '#FDE68A'],
-    spread: 75,
-    scalar: 1.2,
+    tagline: 'Spotted Forest Stalker!',
+    themeColor: '#D97706',
+    accentBg: 'from-amber-600 to-yellow-600',
+    floatingItems: ['🐆', '🐾', '🌿', '✨', '🐾', '⭐'],
+    animationType: 'predator_burst',
+  },
+  jaguar: {
+    tagline: 'Rainforest Champion!',
+    themeColor: '#B45309',
+    accentBg: 'from-amber-700 to-emerald-600',
+    floatingItems: ['🐆', '🐾', '🌿', '💧', '✨'],
+    animationType: 'predator_burst',
+  },
+  wolf: {
+    tagline: 'Moonlight Howl!',
+    themeColor: '#475569',
+    accentBg: 'from-slate-600 to-indigo-700',
+    floatingItems: ['🐺', '🌙', '⭐', '❄️', '🌲', '✨'],
+    animationType: 'predator_burst',
   },
 
-  // === Safari & Jungle Giants ===
+  // === Safari Giants ===
   elephant: {
-    emojis: ['🐘', '💦', '💧', '🌿'],
-    colors: ['#38BDF8', '#0284C7', '#64748B', '#10B981', '#E0F2FE'],
-    spread: 70,
-    gravity: 0.9,
-    scalar: 1.35,
-    startVelocity: 42,
-    specialEffect: 'fountain',
+    tagline: 'Trunk Water Splash!',
+    themeColor: '#0284C7',
+    accentBg: 'from-sky-500 to-blue-600',
+    floatingItems: ['🐘', '💦', '💧', '🌊', '💦', '💧'],
+    animationType: 'splash',
   },
   giraffe: {
-    emojis: ['🦒', '🍃', '🌿', '⭐'],
-    colors: ['#F59E0B', '#D97706', '#84CC16', '#FEF08A', '#10B981'],
-    spread: 65,
-    gravity: 0.65,
-    scalar: 1.3,
-    startVelocity: 40,
-    specialEffect: 'fountain',
-  },
-  zebra: {
-    emojis: ['🦓', '⚡', '✨', '🐾'],
-    colors: ['#000000', '#FFFFFF', '#94A3B8', '#E2E8F0', '#18181B'],
-    spread: 80,
-    scalar: 1.25,
-    specialEffect: 'burst',
+    tagline: 'Treetop Leaves Reach!',
+    themeColor: '#D97706',
+    accentBg: 'from-amber-500 to-emerald-500',
+    floatingItems: ['🦒', '🍃', '🌿', '⭐', '🍃', '✨'],
+    animationType: 'leaf_flutter',
   },
   hippo: {
-    emojis: ['🦛', '💦', '💧', '🌿'],
-    colors: ['#0284C7', '#38BDF8', '#64748B', '#0EA5E9'],
-    spread: 70,
-    gravity: 1.1,
-    scalar: 1.3,
+    tagline: 'River Water Splash!',
+    themeColor: '#0369A1',
+    accentBg: 'from-cyan-600 to-blue-700',
+    floatingItems: ['🦛', '💦', '💧', '🌊', '🫧', '💧'],
+    animationType: 'splash',
   },
   rhino: {
-    emojis: ['🦏', '🌿', '🪨', '⭐'],
-    colors: ['#64748B', '#475569', '#10B981', '#94A3B8'],
-    spread: 75,
-    scalar: 1.25,
+    tagline: 'Mighty Horn Power!',
+    themeColor: '#475569',
+    accentBg: 'from-slate-600 to-zinc-700',
+    floatingItems: ['🦏', '🪨', '⭐', '💨', '🌿', '⭐'],
+    animationType: 'predator_burst',
+  },
+  zebra: {
+    tagline: 'Dazzling Stripes Sprint!',
+    themeColor: '#18181B',
+    accentBg: 'from-slate-800 to-neutral-900',
+    floatingItems: ['🦓', '⚡', '✨', '🐾', '⭐', '✨'],
+    animationType: 'predator_burst',
   },
 
   // === Primates ===
   chimp: {
-    emojis: ['🐒', '🍌', '🌴', '⭐'],
-    colors: ['#FBBF24', '#10B981', '#059669', '#F59E0B'],
-    spread: 75,
-    scalar: 1.3,
-    specialEffect: 'bounce',
+    tagline: 'Playful Banana Bounce!',
+    themeColor: '#D97706',
+    accentBg: 'from-amber-500 to-yellow-500',
+    floatingItems: ['🐒', '🍌', '🌴', '⭐', '🍌', '🍌'],
+    animationType: 'banana_hop',
   },
   monkey: {
-    emojis: ['🐒', '🍌', '🌴', '✨'],
-    colors: ['#FBBF24', '#10B981', '#059669', '#F59E0B'],
-    spread: 75,
-    scalar: 1.3,
-    specialEffect: 'bounce',
+    tagline: 'Jungle Banana Swing!',
+    themeColor: '#D97706',
+    accentBg: 'from-amber-500 to-emerald-500',
+    floatingItems: ['🐒', '🍌', '🌴', '✨', '🍌', '🍌'],
+    animationType: 'banana_hop',
   },
   gorilla: {
-    emojis: ['🦍', '🍌', '🌿', '💪'],
-    colors: ['#18181B', '#3F3F46', '#10B981', '#FBBF24'],
-    spread: 80,
-    scalar: 1.35,
+    tagline: 'Mighty Jungle Power!',
+    themeColor: '#18181B',
+    accentBg: 'from-zinc-800 to-emerald-800',
+    floatingItems: ['🦍', '🍌', '🌿', '💪', '🍌', '🌴'],
+    animationType: 'banana_hop',
   },
   orangutan: {
-    emojis: ['🦧', '🍌', '🌴', '🌺'],
-    colors: ['#EA580C', '#C2410C', '#10B981', '#FDBA74'],
-    spread: 75,
-    scalar: 1.3,
+    tagline: 'Treetop Gentle Swing!',
+    themeColor: '#EA580C',
+    accentBg: 'from-orange-500 to-emerald-600',
+    floatingItems: ['🦧', '🍌', '🌴', '🌺', '🍌', '🍃'],
+    animationType: 'banana_hop',
   },
   lemur: {
-    emojis: ['🐒', '🌴', '✨', '🍃'],
-    colors: ['#F97316', '#64748B', '#10B981', '#FED7AA'],
-    spread: 70,
-    scalar: 1.25,
+    tagline: 'Ringtail Leaper!',
+    themeColor: '#EA580C',
+    accentBg: 'from-orange-500 to-amber-500',
+    floatingItems: ['🐒', '🌴', '✨', '🍌', '🍃', '⭐'],
+    animationType: 'banana_hop',
   },
 
-  // === Unique Wild Mammals ===
+  // === Gentle Wonders ===
   panda: {
-    emojis: ['🐼', '🎋', '🍃', '✨'],
-    colors: ['#10B981', '#047857', '#1E293B', '#F8FAFC', '#34D399'],
-    spread: 70,
-    gravity: 0.75,
-    scalar: 1.35,
-    specialEffect: 'flutter',
+    tagline: 'Crunchy Bamboo Feast!',
+    themeColor: '#059669',
+    accentBg: 'from-emerald-600 to-teal-700',
+    floatingItems: ['🐼', '🎋', '🍃', '✨', '🎋', '🍃'],
+    animationType: 'leaf_flutter',
   },
   koala: {
-    emojis: ['🐨', '🌿', '🍃', '☁️'],
-    colors: ['#059669', '#34D399', '#94A3B8', '#64748B', '#A7F3D0'],
-    spread: 60,
-    gravity: 0.7,
-    scalar: 1.3,
-    specialEffect: 'flutter',
-  },
-  kangaroo: {
-    emojis: ['🦘', '⭐', '✨', '🐾'],
-    colors: ['#D97706', '#F59E0B', '#B45309', '#FDE68A'],
-    spread: 70,
-    gravity: 1.3,
-    startVelocity: 42,
-    scalar: 1.3,
-    specialEffect: 'bounce',
+    tagline: 'Eucalyptus Hug!',
+    themeColor: '#059669',
+    accentBg: 'from-emerald-500 to-slate-500',
+    floatingItems: ['🐨', '🌿', '🍃', '☁️', '🌿', '✨'],
+    animationType: 'leaf_flutter',
   },
   sloth: {
-    emojis: ['🦥', '🌺', '🍃', '🌸'],
-    colors: ['#10B981', '#F472B6', '#34D399', '#FB7185', '#86EFAC'],
-    spread: 50,
-    gravity: 0.45,
-    startVelocity: 18,
-    ticks: 120,
-    scalar: 1.3,
-    specialEffect: 'flutter',
+    tagline: 'Calm & Slow Relax!',
+    themeColor: '#059669',
+    accentBg: 'from-emerald-500 to-pink-500',
+    floatingItems: ['🦥', '🌺', '🍃', '🌸', '✨', '🍃'],
+    animationType: 'leaf_flutter',
   },
-  bear: {
-    emojis: ['🐻', '🍯', '🍂', '🫐'],
-    colors: ['#F59E0B', '#D97706', '#92400E', '#3B82F6', '#FEF3C7'],
-    spread: 75,
-    scalar: 1.3,
-  },
-  wolf: {
-    emojis: ['🐺', '✨', '🌲', '❄️'],
-    colors: ['#64748B', '#94A3B8', '#38BDF8', '#E2E8F0', '#F8FAFC'],
-    spread: 75,
-    scalar: 1.25,
-  },
-  fox: {
-    emojis: ['🦊', '🔥', '🍂', '✨'],
-    colors: ['#EA580C', '#F97316', '#D97706', '#FED7AA'],
-    spread: 75,
-    scalar: 1.25,
-    specialEffect: 'burst',
+  kangaroo: {
+    tagline: 'Outback Mega Hop!',
+    themeColor: '#D97706',
+    accentBg: 'from-amber-600 to-orange-600',
+    floatingItems: ['🦘', '⭐', '✨', '🐾', '⭐', '🦘'],
+    animationType: 'spring_bounce',
   },
   rabbit: {
-    emojis: ['🐰', '🥕', '🍀', '⭐'],
-    colors: ['#F97316', '#10B981', '#FBBF24', '#F472B6', '#FFFFFF'],
-    spread: 70,
-    gravity: 1.25,
-    scalar: 1.3,
-    specialEffect: 'bounce',
+    tagline: 'Bunny Hop & Carrots!',
+    themeColor: '#EA580C',
+    accentBg: 'from-orange-500 to-pink-500',
+    floatingItems: ['🐰', '🥕', '🍀', '⭐', '🥕', '🌸'],
+    animationType: 'spring_bounce',
   },
-  hedgehog: {
-    emojis: ['🦔', '🍄', '🍂', '⭐'],
-    colors: ['#92400E', '#D97706', '#EF4444', '#FEF3C7'],
-    spread: 65,
-    scalar: 1.25,
-  },
-  squirrel: {
-    emojis: ['🐿️', '🌰', '🍂', '✨'],
-    colors: ['#D97706', '#B45309', '#92400E', '#FDE68A'],
-    spread: 70,
-    scalar: 1.25,
-  },
-  camel: {
-    emojis: ['🐪', '☀️', '🏜️', '✨'],
-    colors: ['#D97706', '#F59E0B', '#FBBF24', '#FEF08A'],
-    spread: 70,
-    scalar: 1.25,
-  },
-  'bactrian-camel': {
-    emojis: ['🐫', '☀️', '🏜️', '✨'],
-    colors: ['#D97706', '#F59E0B', '#FBBF24', '#FEF08A'],
-    spread: 70,
-    scalar: 1.25,
+  frog: {
+    tagline: 'Lilypad Super Leap!',
+    themeColor: '#059669',
+    accentBg: 'from-emerald-500 to-cyan-500',
+    floatingItems: ['🐸', '🪷', '💧', '🍃', '💧', '🪷'],
+    animationType: 'spring_bounce',
   },
 
   // === Ocean & Sea Wildlife ===
   dolphin: {
-    emojis: ['🐬', '🫧', '🌊', '💦'],
-    colors: ['#0284C7', '#0EA5E9', '#38BDF8', '#7DD3FC', '#E0F2FE'],
-    spread: 75,
-    gravity: 0.8,
-    startVelocity: 38,
-    scalar: 1.3,
-    specialEffect: 'fountain',
+    tagline: 'High Ocean Splash!',
+    themeColor: '#0284C7',
+    accentBg: 'from-sky-500 to-blue-600',
+    floatingItems: ['🐬', '🫧', '🌊', '💦', '🫧', '✨'],
+    animationType: 'splash',
   },
   'blue-whale': {
-    emojis: ['🐋', '🫧', '🌊', '💦'],
-    colors: ['#0369A1', '#0284C7', '#38BDF8', '#BAE6FD'],
-    spread: 85,
-    gravity: 0.85,
-    startVelocity: 44,
-    scalar: 1.4,
-    specialEffect: 'fountain',
+    tagline: 'Deep Ocean Spout Splash!',
+    themeColor: '#0369A1',
+    accentBg: 'from-sky-600 to-indigo-700',
+    floatingItems: ['🐋', '🫧', '🌊', '💦', '🫧', '💧'],
+    animationType: 'splash',
   },
   'humpback-whale': {
-    emojis: ['🐋', '🫧', '🌊', '✨'],
-    colors: ['#0369A1', '#0284C7', '#38BDF8', '#BAE6FD'],
-    spread: 85,
-    gravity: 0.85,
-    startVelocity: 44,
-    scalar: 1.4,
-    specialEffect: 'fountain',
+    tagline: 'Spectacular Whale Breach!',
+    themeColor: '#0369A1',
+    accentBg: 'from-sky-600 to-blue-800',
+    floatingItems: ['🐋', '🫧', '🌊', '💦', '✨', '🫧'],
+    animationType: 'splash',
   },
   orca: {
-    emojis: ['🐋', '🌊', '🫧', '⚡'],
-    colors: ['#000000', '#FFFFFF', '#0284C7', '#38BDF8'],
-    spread: 80,
-    scalar: 1.35,
-    specialEffect: 'fountain',
+    tagline: 'Ocean Wave Rider!',
+    themeColor: '#0284C7',
+    accentBg: 'from-slate-900 to-sky-600',
+    floatingItems: ['🐋', '🌊', '🫧', '⚡', '🌊', '🫧'],
+    animationType: 'splash',
   },
   beluga: {
-    emojis: ['🐳', '🫧', '❄️', '✨'],
-    colors: ['#F8FAFC', '#E0F2FE', '#38BDF8', '#BAE6FD'],
-    spread: 70,
-    gravity: 0.75,
-    scalar: 1.3,
-    specialEffect: 'fountain',
+    tagline: 'Cheerful Whale Melody!',
+    themeColor: '#0284C7',
+    accentBg: 'from-sky-400 to-blue-500',
+    floatingItems: ['🐳', '🫧', '❄️', '✨', '🫧', '💧'],
+    animationType: 'bubble_float',
   },
   narwhal: {
-    emojis: ['🦄', '🫧', '❄️', '✨'],
-    colors: ['#38BDF8', '#818CF8', '#C084FC', '#E0F2FE'],
-    spread: 75,
-    scalar: 1.3,
-    specialEffect: 'fountain',
+    tagline: 'Unicorn of the Sea!',
+    themeColor: '#7C3AED',
+    accentBg: 'from-purple-500 to-sky-500',
+    floatingItems: ['🦄', '🫧', '❄️', '✨', '💎', '🫧'],
+    animationType: 'bubble_float',
   },
   shark: {
-    emojis: ['🦈', '🌊', '⚡', '🫧'],
-    colors: ['#0284C7', '#475569', '#64748B', '#38BDF8'],
-    spread: 80,
-    scalar: 1.3,
-    specialEffect: 'burst',
+    tagline: 'Swift Ocean Hunter!',
+    themeColor: '#0284C7',
+    accentBg: 'from-slate-700 to-sky-600',
+    floatingItems: ['🦈', '🌊', '⚡', '🫧', '🌊', '⚡'],
+    animationType: 'splash',
   },
   octopus: {
-    emojis: ['🐙', '🫧', '💜', '🌊'],
-    colors: ['#9333EA', '#A855F7', '#C084FC', '#38BDF8', '#F472B6'],
-    spread: 80,
-    gravity: 0.8,
-    scalar: 1.3,
+    tagline: 'Coral Reef Explorer!',
+    themeColor: '#9333EA',
+    accentBg: 'from-purple-600 to-pink-600',
+    floatingItems: ['🐙', '🫧', '💜', '🪸', '🫧', '✨'],
+    animationType: 'bubble_float',
   },
   squid: {
-    emojis: ['🦑', '🫧', '🌊', '✨'],
-    colors: ['#EC4899', '#A855F7', '#38BDF8', '#F472B6'],
-    spread: 75,
-    scalar: 1.3,
+    tagline: 'Glowing Deep Sea Glider!',
+    themeColor: '#DB2777',
+    accentBg: 'from-pink-600 to-purple-600',
+    floatingItems: ['🦑', '🫧', '🌊', '✨', '🫧', '💎'],
+    animationType: 'bubble_float',
   },
   'sea-turtle': {
-    emojis: ['🐢', '🪸', '🫧', '🌿'],
-    colors: ['#059669', '#10B981', '#38BDF8', '#34D399', '#0284C7'],
-    spread: 70,
-    gravity: 0.7,
-    scalar: 1.3,
-    specialEffect: 'flutter',
+    tagline: 'Coral Reef Glider!',
+    themeColor: '#059669',
+    accentBg: 'from-emerald-500 to-teal-600',
+    floatingItems: ['🐢', '🪸', '🫧', '🌿', '🫧', '🌊'],
+    animationType: 'bubble_float',
   },
   clownfish: {
-    emojis: ['🐠', '🪸', '🫧', '✨'],
-    colors: ['#EA580C', '#F97316', '#FFFFFF', '#38BDF8', '#FBBF24'],
-    spread: 75,
-    scalar: 1.3,
+    tagline: 'Anemone Reef Swimmer!',
+    themeColor: '#EA580C',
+    accentBg: 'from-orange-500 to-amber-500',
+    floatingItems: ['🐠', '🪸', '🫧', '✨', '🐠', '🫧'],
+    animationType: 'bubble_float',
   },
   jellyfish: {
-    emojis: ['🪼', '✨', '🫧', '💜'],
-    colors: ['#C084FC', '#E879F9', '#38BDF8', '#F472B6', '#DDD6FE'],
-    spread: 65,
-    gravity: 0.5,
-    ticks: 100,
-    scalar: 1.35,
-    specialEffect: 'flutter',
-  },
-  starfish: {
-    emojis: ['⭐', '🪸', '🫧', '✨'],
-    colors: ['#F97316', '#F59E0B', '#EC4899', '#38BDF8'],
-    spread: 75,
-    scalar: 1.3,
+    tagline: 'Glowing Ocean Sparkle!',
+    themeColor: '#C084FC',
+    accentBg: 'from-purple-400 to-pink-400',
+    floatingItems: ['🪼', '✨', '🫧', '💜', '💎', '🫧'],
+    animationType: 'bubble_float',
   },
   seahorse: {
-    emojis: ['🐎', '🪸', '🫧', '✨'],
-    colors: ['#F59E0B', '#EC4899', '#38BDF8', '#34D399'],
-    spread: 65,
-    gravity: 0.65,
-    scalar: 1.3,
-    specialEffect: 'flutter',
+    tagline: 'Gentle Reef Swimmer!',
+    themeColor: '#F59E0B',
+    accentBg: 'from-amber-400 to-pink-500',
+    floatingItems: ['🐎', '🪸', '🫧', '✨', '🫧', '⭐'],
+    animationType: 'bubble_float',
+  },
+  starfish: {
+    tagline: 'Golden Star of the Sea!',
+    themeColor: '#F97316',
+    accentBg: 'from-orange-500 to-pink-500',
+    floatingItems: ['⭐', '🪸', '🫧', '✨', '⭐', '🫧'],
+    animationType: 'bubble_float',
   },
   crab: {
-    emojis: ['🦀', '🫧', '🏖️', '✨'],
-    colors: ['#EF4444', '#F97316', '#FBBF24', '#38BDF8'],
-    spread: 70,
-    scalar: 1.25,
+    tagline: 'Beach Snip-Snap Crawl!',
+    themeColor: '#DC2626',
+    accentBg: 'from-red-500 to-amber-500',
+    floatingItems: ['🦀', '🫧', '🏖️', '✨', '🦀', '⭐'],
+    animationType: 'spring_bounce',
   },
   lobster: {
-    emojis: ['🦞', '🫧', '🌊', '✨'],
-    colors: ['#DC2626', '#EF4444', '#F97316', '#38BDF8'],
-    spread: 70,
-    scalar: 1.25,
+    tagline: 'Ocean Claw Wave!',
+    themeColor: '#DC2626',
+    accentBg: 'from-red-600 to-orange-600',
+    floatingItems: ['🦞', '🫧', '🌊', '✨', '🦞', '🫧'],
+    animationType: 'bubble_float',
   },
   penguin: {
-    emojis: ['🐧', '❄️', '🧊', '🐟'],
-    colors: ['#0284C7', '#38BDF8', '#18181B', '#FFFFFF', '#F59E0B'],
-    spread: 70,
-    gravity: 0.9,
-    scalar: 1.3,
-    specialEffect: 'snow',
+    tagline: 'Arctic Belly Slide!',
+    themeColor: '#0284C7',
+    accentBg: 'from-sky-500 to-slate-800',
+    floatingItems: ['🐧', '❄️', '🧊', '🐟', '❄️', '⭐'],
+    animationType: 'snow_fall',
   },
   seal: {
-    emojis: ['🦭', '❄️', '🫧', '🐟'],
-    colors: ['#64748B', '#38BDF8', '#E0F2FE', '#94A3B8'],
-    spread: 70,
-    scalar: 1.3,
-    specialEffect: 'snow',
+    tagline: 'Flipper Clap & Splash!',
+    themeColor: '#0284C7',
+    accentBg: 'from-sky-500 to-cyan-600',
+    floatingItems: ['🦭', '❄️', '🫧', '🐟', '💦', '🫧'],
+    animationType: 'snow_fall',
   },
   walrus: {
-    emojis: ['🦭', '❄️', '🧊', '🌊'],
-    colors: ['#78350F', '#92400E', '#38BDF8', '#CBD5E1'],
-    spread: 70,
-    scalar: 1.3,
-    specialEffect: 'snow',
+    tagline: 'Arctic Ice Glider!',
+    themeColor: '#78350F',
+    accentBg: 'from-amber-800 to-sky-600',
+    floatingItems: ['🦭', '❄️', '🧊', '🌊', '❄️', '⭐'],
+    animationType: 'snow_fall',
   },
 
-  // === Birds & Winged Wildlife ===
+  // === Birds ===
   peacock: {
-    emojis: ['🦚', '🪶', '💎', '✨'],
-    colors: ['#047857', '#0284C7', '#7C3AED', '#10B981', '#38BDF8', '#F59E0B'],
-    spread: 90,
-    gravity: 0.7,
-    scalar: 1.35,
-    specialEffect: 'flutter',
+    tagline: 'Emerald Fan Feathers!',
+    themeColor: '#047857',
+    accentBg: 'from-emerald-600 via-sky-600 to-purple-600',
+    floatingItems: ['🦚', '🪶', '💎', '✨', '🪶', '🌸'],
+    animationType: 'feather_drift',
   },
   flamingo: {
-    emojis: ['🦩', '🪶', '🌸', '✨'],
-    colors: ['#F43F5E', '#FB7185', '#FDA4AF', '#FFE4E6', '#38BDF8'],
-    spread: 75,
-    gravity: 0.65,
-    scalar: 1.3,
-    specialEffect: 'flutter',
+    tagline: 'Pink Lagoon Dance!',
+    themeColor: '#E11D48',
+    accentBg: 'from-rose-500 to-pink-500',
+    floatingItems: ['🦩', '🪶', '🌸', '✨', '🪶', '💖'],
+    animationType: 'feather_drift',
   },
   toucan: {
-    emojis: ['🦚', '🌴', '🌺', '✨'],
-    colors: ['#F59E0B', '#EF4444', '#10B981', '#0284C7', '#18181B'],
-    spread: 80,
-    scalar: 1.3,
+    tagline: 'Rainbow Beak Call!',
+    themeColor: '#D97706',
+    accentBg: 'from-amber-500 to-red-500',
+    floatingItems: ['🦚', '🌴', '🌺', '✨', '🪶', '⭐'],
+    animationType: 'feather_drift',
   },
   macaw: {
-    emojis: ['🦜', '🪶', '🌺', '🌴'],
-    colors: ['#EF4444', '#F59E0B', '#10B981', '#3B82F6', '#EC4899'],
-    spread: 85,
-    gravity: 0.7,
-    scalar: 1.3,
-    specialEffect: 'flutter',
-  },
-  owl: {
-    emojis: ['🦉', '🌙', '⭐', '✨'],
-    colors: ['#D97706', '#92400E', '#6366F1', '#FDE68A', '#FEF3C7'],
-    spread: 70,
-    gravity: 0.7,
-    scalar: 1.3,
-  },
-  eagle: {
-    emojis: ['🦅', '🪶', '🏔️', '⭐'],
-    colors: ['#92400E', '#B45309', '#F59E0B', '#F8FAFC'],
-    spread: 80,
-    gravity: 0.65,
-    scalar: 1.3,
+    tagline: 'Brilliant Tropical Flight!',
+    themeColor: '#DC2626',
+    accentBg: 'from-red-500 via-amber-500 to-blue-500',
+    floatingItems: ['🦜', '🪶', '🌺', '🌴', '🪶', '✨'],
+    animationType: 'feather_drift',
   },
   hummingbird: {
-    emojis: ['🐦', '🌸', '🌺', '✨'],
-    colors: ['#10B981', '#EC4899', '#8B5CF6', '#F59E0B', '#38BDF8'],
-    spread: 80,
-    gravity: 0.5,
-    startVelocity: 30,
-    scalar: 1.25,
-    specialEffect: 'flutter',
+    tagline: 'Fast Flower Hover!',
+    themeColor: '#059669',
+    accentBg: 'from-emerald-500 via-pink-500 to-purple-500',
+    floatingItems: ['🐦', '🌸', '🌺', '✨', '🌸', '💎'],
+    animationType: 'feather_drift',
+  },
+  owl: {
+    tagline: 'Wise Night Watch!',
+    themeColor: '#4F46E5',
+    accentBg: 'from-indigo-600 to-amber-700',
+    floatingItems: ['🦉', '🌙', '⭐', '✨', '🪶', '🌲'],
+    animationType: 'feather_drift',
+  },
+  eagle: {
+    tagline: 'Soaring Sky Monarch!',
+    themeColor: '#B45309',
+    accentBg: 'from-amber-700 to-sky-600',
+    floatingItems: ['🦅', '🪶', '🏔️', '⭐', '🪶', '✨'],
+    animationType: 'feather_drift',
   },
   swan: {
-    emojis: ['🦢', '🪶', '💧', '✨'],
-    colors: ['#F8FAFC', '#E2E8F0', '#38BDF8', '#F59E0B'],
-    spread: 65,
-    gravity: 0.6,
-    scalar: 1.3,
-    specialEffect: 'flutter',
-  },
-  puffin: {
-    emojis: ['🐧', '🐟', '🌊', '✨'],
-    colors: ['#18181B', '#FFFFFF', '#EA580C', '#38BDF8'],
-    spread: 70,
-    scalar: 1.3,
+    tagline: 'Graceful Lake Glide!',
+    themeColor: '#0284C7',
+    accentBg: 'from-sky-400 to-slate-300',
+    floatingItems: ['🦢', '🪶', '💧', '✨', '🪶', '🪷'],
+    animationType: 'feather_drift',
   },
 
   // === Farm Friends ===
   cow: {
-    emojis: ['🐮', '🥛', '🍀', '🌾'],
-    colors: ['#18181B', '#FFFFFF', '#10B981', '#FDE68A'],
-    spread: 70,
-    scalar: 1.3,
+    tagline: 'Fresh Meadow Moo!',
+    themeColor: '#059669',
+    accentBg: 'from-emerald-500 to-amber-500',
+    floatingItems: ['🐮', '🥛', '🍀', '🌾', '🍀', '🥛'],
+    animationType: 'meadow_bloom',
   },
   pig: {
-    emojis: ['🐷', '💖', '🌸', '🍎'],
-    colors: ['#F472B6', '#FB7185', '#FDA4AF', '#F43F5E'],
-    spread: 70,
-    scalar: 1.3,
-    specialEffect: 'bounce',
+    tagline: 'Joyful Oink Splash!',
+    themeColor: '#DB2777',
+    accentBg: 'from-pink-500 to-rose-500',
+    floatingItems: ['🐷', '💖', '🌸', '🍎', '🐷', '✨'],
+    animationType: 'spring_bounce',
   },
   sheep: {
-    emojis: ['🐑', '☁️', '🍀', '✨'],
-    colors: ['#F8FAFC', '#E2E8F0', '#10B981', '#CBD5E1'],
-    spread: 65,
-    gravity: 0.8,
-    scalar: 1.3,
+    tagline: 'Soft Wool Clouds!',
+    themeColor: '#059669',
+    accentBg: 'from-emerald-500 to-slate-400',
+    floatingItems: ['🐑', '☁️', '🍀', '✨', '☁️', '🌾'],
+    animationType: 'meadow_bloom',
   },
   horse: {
-    emojis: ['🐴', '🌟', '🌾', '🍀'],
-    colors: ['#92400E', '#B45309', '#F59E0B', '#10B981'],
-    spread: 75,
-    scalar: 1.3,
-    specialEffect: 'burst',
+    tagline: 'Galloping Meadow Hero!',
+    themeColor: '#92400E',
+    accentBg: 'from-amber-700 to-emerald-600',
+    floatingItems: ['🐴', '🌟', '🌾', '🍀', '🐴', '✨'],
+    animationType: 'predator_burst',
   },
   duck: {
-    emojis: ['🦆', '💧', '🪶', '🌿'],
-    colors: ['#059669', '#F59E0B', '#38BDF8', '#FEF08A'],
-    spread: 70,
-    scalar: 1.3,
+    tagline: 'Pond Quack & Splash!',
+    themeColor: '#059669',
+    accentBg: 'from-emerald-600 to-sky-500',
+    floatingItems: ['🦆', '💧', '🪶', '🌿', '💧', '🦆'],
+    animationType: 'splash',
   },
   chicken: {
-    emojis: ['🐔', '🌾', '🐣', '⭐'],
-    colors: ['#EF4444', '#F59E0B', '#FBBF24', '#FEF08A'],
-    spread: 70,
-    scalar: 1.25,
-    specialEffect: 'bounce',
+    tagline: 'Farmyard Cluck!',
+    themeColor: '#DC2626',
+    accentBg: 'from-red-500 to-amber-500',
+    floatingItems: ['🐔', '🌾', '🐣', '⭐', '🌾', '🥚'],
+    animationType: 'spring_bounce',
   },
   rooster: {
-    emojis: ['🐓', '☀️', '🌾', '⭐'],
-    colors: ['#DC2626', '#F59E0B', '#10B981', '#FBBF24'],
-    spread: 75,
-    scalar: 1.3,
+    tagline: 'Morning Sunrise Crow!',
+    themeColor: '#DC2626',
+    accentBg: 'from-red-600 to-amber-500',
+    floatingItems: ['🐓', '☀️', '🌾', '⭐', '🐓', '✨'],
+    animationType: 'predator_burst',
   },
   dog: {
-    emojis: ['🐶', '🦴', '🐾', '❤️'],
-    colors: ['#D97706', '#F59E0B', '#EF4444', '#FDE68A'],
-    spread: 75,
-    scalar: 1.3,
-    specialEffect: 'bounce',
+    tagline: 'Happy Tail Wag & Bark!',
+    themeColor: '#D97706',
+    accentBg: 'from-amber-500 to-rose-500',
+    floatingItems: ['🐶', '🦴', '🐾', '❤️', '🐾', '⭐'],
+    animationType: 'spring_bounce',
   },
   cat: {
-    emojis: ['🐱', '🧶', '🐾', '✨'],
-    colors: ['#F97316', '#FB7185', '#818CF8', '#FED7AA'],
-    spread: 70,
-    scalar: 1.3,
-  },
-  frog: {
-    emojis: ['🐸', '🪷', '💧', '🍃'],
-    colors: ['#10B981', '#059669', '#34D399', '#38BDF8', '#86EFAC'],
-    spread: 75,
-    gravity: 1.35,
-    startVelocity: 40,
-    scalar: 1.35,
-    specialEffect: 'bounce',
+    tagline: 'Purring Cozy Yarn Play!',
+    themeColor: '#EA580C',
+    accentBg: 'from-orange-500 to-purple-500',
+    floatingItems: ['🐱', '🧶', '🐾', '✨', '🐾', '💖'],
+    animationType: 'feather_drift',
   },
 
-  // === Bugs & Insects ===
+  // === Bugs ===
   butterfly: {
-    emojis: ['🦋', '🌸', '🌺', '✨'],
-    colors: ['#EC4899', '#8B5CF6', '#3B82F6', '#F59E0B', '#10B981'],
-    spread: 85,
-    gravity: 0.45,
-    ticks: 110,
-    scalar: 1.35,
-    specialEffect: 'flutter',
+    tagline: 'Fluttering Garden Wings!',
+    themeColor: '#9333EA',
+    accentBg: 'from-purple-500 to-pink-500',
+    floatingItems: ['🦋', '🌸', '🌺', '✨', '🦋', '🌸'],
+    animationType: 'feather_drift',
   },
   bee: {
-    emojis: ['🐝', '🍯', '🌻', '✨'],
-    colors: ['#F59E0B', '#FBBF24', '#18181B', '#FEF08A'],
-    spread: 75,
-    gravity: 0.7,
-    scalar: 1.3,
-    specialEffect: 'flutter',
+    tagline: 'Busy Honey Buzz!',
+    themeColor: '#D97706',
+    accentBg: 'from-amber-500 to-yellow-500',
+    floatingItems: ['🐝', '🍯', '🌻', '✨', '🍯', '🐝'],
+    animationType: 'feather_drift',
   },
   ladybug: {
-    emojis: ['🐞', '🍀', '🌸', '✨'],
-    colors: ['#DC2626', '#EF4444', '#18181B', '#10B981'],
-    spread: 70,
-    scalar: 1.3,
-  },
-  dragonfly: {
-    emojis: ['🪲', '💧', '✨', '🪷'],
-    colors: ['#0284C7', '#10B981', '#8B5CF6', '#38BDF8'],
-    spread: 75,
-    gravity: 0.5,
-    scalar: 1.3,
-    specialEffect: 'flutter',
-  },
-  firefly: {
-    emojis: ['✨', '🌟', '🌙', '💛'],
-    colors: ['#FACC15', '#FEF08A', '#84CC16', '#F59E0B'],
-    spread: 70,
-    gravity: 0.4,
-    ticks: 120,
-    scalar: 1.35,
-    specialEffect: 'flutter',
+    tagline: 'Lucky Garden Friend!',
+    themeColor: '#DC2626',
+    accentBg: 'from-red-600 to-emerald-600',
+    floatingItems: ['🐞', '🍀', '🌸', '✨', '🐞', '🍀'],
+    animationType: 'meadow_bloom',
   },
 };
 
-// Category fallback configurations
-const CATEGORY_FALLBACKS: Record<string, EffectConfig> = {
+// Generic fallback by category
+const CATEGORY_FALLBACKS: Record<string, ThemeConfig> = {
   farm: {
-    emojis: ['🌾', '🍀', '⭐', '🐾'],
-    colors: ['#10B981', '#F59E0B', '#FBBF24', '#059669'],
-    spread: 70,
-    scalar: 1.25,
+    tagline: 'Country Farm Friend!',
+    themeColor: '#059669',
+    accentBg: 'from-emerald-500 to-amber-500',
+    floatingItems: ['🌾', '🍀', '⭐', '🐾', '🌾', '🍀'],
+    animationType: 'meadow_bloom',
   },
   wild: {
-    emojis: ['🐾', '🌴', '🌿', '⭐'],
-    colors: ['#F59E0B', '#D97706', '#10B981', '#B45309'],
-    spread: 75,
-    scalar: 1.25,
+    tagline: 'Wild Adventure!',
+    themeColor: '#D97706',
+    accentBg: 'from-amber-500 to-emerald-600',
+    floatingItems: ['🐾', '🌴', '🌿', '⭐', '✨', '🐾'],
+    animationType: 'predator_burst',
   },
   sea: {
-    emojis: ['🫧', '🌊', '💧', '🐠'],
-    colors: ['#0284C7', '#38BDF8', '#0EA5E9', '#7DD3FC'],
-    spread: 75,
-    gravity: 0.8,
-    scalar: 1.25,
-    specialEffect: 'fountain',
+    tagline: 'Ocean Wonder!',
+    themeColor: '#0284C7',
+    accentBg: 'from-sky-500 to-blue-600',
+    floatingItems: ['🫧', '🌊', '💧', '🐠', '🫧', '🪸'],
+    animationType: 'bubble_float',
   },
   birds: {
-    emojis: ['🪶', '✨', '🌸', '⭐'],
-    colors: ['#F43F5E', '#3B82F6', '#10B981', '#F59E0B'],
-    spread: 80,
-    gravity: 0.65,
-    scalar: 1.25,
-    specialEffect: 'flutter',
+    tagline: 'Feathered Friend!',
+    themeColor: '#E11D48',
+    accentBg: 'from-rose-500 to-sky-500',
+    floatingItems: ['🪶', '✨', '🌸', '⭐', '🪶', '🌺'],
+    animationType: 'feather_drift',
   },
   bugs: {
-    emojis: ['🌸', '🌺', '✨', '🍃'],
-    colors: ['#EC4899', '#8B5CF6', '#10B981', '#F59E0B'],
-    spread: 75,
-    gravity: 0.5,
-    scalar: 1.25,
-    specialEffect: 'flutter',
+    tagline: 'Garden Explorer!',
+    themeColor: '#9333EA',
+    accentBg: 'from-purple-500 to-pink-500',
+    floatingItems: ['🌸', '🌺', '✨', '🍃', '⭐', '🌸'],
+    animationType: 'feather_drift',
   },
 };
 
 /**
- * Triggers a completely unique, personalized visual animation effect for each animal
+ * Triggers a completely unique, personalized visual animation with large, crisp, distinct HD elements
  */
 export function playAnimalCelebration(
   animal: { id: string; category?: string; name?: string; emoji?: string },
@@ -582,123 +525,36 @@ export function playAnimalCelebration(
 ) {
   if (typeof window === 'undefined') return;
 
-  const origin = originCoord || { x: 0.5, y: 0.55 };
+  const origin = originCoord || { x: 0.5, y: 0.5 };
 
-  // Find exact animal config or category fallback
-  const config: EffectConfig =
-    ANIMAL_EFFECT_MAP[animal.id] ||
+  const config: ThemeConfig =
+    ANIMAL_PROFILES[animal.id] ||
     (animal.category ? CATEGORY_FALLBACKS[animal.category] : null) || {
-      emojis: [animal.emoji || '⭐', '✨', '🐾'],
-      colors: ['#F59E0B', '#10B981', '#3B82F6', '#EC4899'],
-      spread: 70,
-      scalar: 1.2,
+      tagline: `Hello, ${animal.name || 'Friend'}!`,
+      themeColor: '#D97706',
+      accentBg: 'from-amber-500 to-orange-500',
+      floatingItems: [animal.emoji || '⭐', '✨', '🐾', '⭐', '✨', '🎉'],
+      animationType: 'spring_bounce',
     };
 
-  // Extract shapes from emojis safely using canvas-confetti shapeFromText
-  let shapes: any[] = ['circle', 'square'];
-  if (config.emojis && config.emojis.length > 0 && typeof confetti.shapeFromText === 'function') {
-    try {
-      shapes = config.emojis.map((em) => confetti.shapeFromText({ text: em, scalar: config.scalar || 1.3 }));
-    } catch {
-      shapes = ['circle', 'square'];
-    }
-  }
+  const payload: AnimalCelebrationData = {
+    id: animal.id,
+    name: animal.name || 'Animal',
+    emoji: animal.emoji || '🐾',
+    category: animal.category || 'wild',
+    tagline: config.tagline,
+    themeColor: config.themeColor,
+    accentBg: config.accentBg,
+    floatingItems: config.floatingItems,
+    animationType: config.animationType,
+    origin,
+  };
 
-  // Handle special physics behaviors
-  if (config.specialEffect === 'fountain') {
-    // Upward eruption (ocean geyser / tall giraffe acacia reach / elephant trunk spray)
-    confetti({
-      particleCount: config.particleCount || 28,
-      angle: 90,
-      spread: config.spread || 50,
-      origin,
-      colors: config.colors,
-      shapes,
-      scalar: config.scalar || 1.3,
-      gravity: config.gravity || 0.85,
-      startVelocity: config.startVelocity || 42,
-      ticks: config.ticks || 80,
-    });
-  } else if (config.specialEffect === 'snow') {
-    // Gentle polar snowfall & icy shimmer
-    confetti({
-      particleCount: config.particleCount || 26,
-      angle: 90,
-      spread: config.spread || 120,
-      origin: { x: origin.x, y: Math.max(0.1, origin.y - 0.2) },
-      colors: config.colors,
-      shapes,
-      scalar: config.scalar || 1.25,
-      gravity: 0.55,
-      drift: 0.2,
-      startVelocity: 18,
-      ticks: 100,
-    });
-  } else if (config.specialEffect === 'bounce') {
-    // Double springy hops (kangaroo, rabbit, frog, chimps)
-    confetti({
-      particleCount: 18,
-      angle: 75,
-      spread: 55,
-      origin: { x: Math.max(0.2, origin.x - 0.08), y: origin.y },
-      colors: config.colors,
-      shapes,
-      scalar: config.scalar || 1.3,
-      gravity: config.gravity || 1.3,
-      startVelocity: config.startVelocity || 36,
-    });
-    setTimeout(() => {
-      confetti({
-        particleCount: 18,
-        angle: 105,
-        spread: 55,
-        origin: { x: Math.min(0.8, origin.x + 0.08), y: origin.y },
-        colors: config.colors,
-        shapes,
-        scalar: config.scalar || 1.3,
-        gravity: config.gravity || 1.3,
-        startVelocity: config.startVelocity || 36,
-      });
-    }, 120);
-  } else if (config.specialEffect === 'flutter') {
-    // Gentle drifting flutter (butterflies, feathers, peacock, sloth, panda bamboo)
-    confetti({
-      particleCount: config.particleCount || 24,
-      spread: config.spread || 80,
-      origin,
-      colors: config.colors,
-      shapes,
-      scalar: config.scalar || 1.3,
-      gravity: config.gravity || 0.5,
-      drift: 0.15,
-      startVelocity: config.startVelocity || 22,
-      ticks: config.ticks || 100,
-    });
-  } else if (config.specialEffect === 'burst') {
-    // High-energy predator or speed streak burst
-    confetti({
-      particleCount: config.particleCount || 32,
-      spread: config.spread || 90,
-      origin,
-      colors: config.colors,
-      shapes,
-      scalar: config.scalar || 1.3,
-      gravity: 1.1,
-      startVelocity: config.startVelocity || 38,
-      ticks: 60,
-    });
-  } else {
-    // Standard themed animal celebration
-    confetti({
-      particleCount: config.particleCount || 26,
-      spread: config.spread || 70,
-      origin,
-      colors: config.colors,
-      shapes,
-      scalar: config.scalar || 1.25,
-      gravity: config.gravity || 1.0,
-      startVelocity: config.startVelocity || 30,
-      ticks: config.ticks || 70,
-    });
-  }
+  listeners.forEach((listener) => {
+    try {
+      listener(payload);
+    } catch (e) {
+      console.error(e);
+    }
+  });
 }
