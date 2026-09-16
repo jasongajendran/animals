@@ -3,10 +3,10 @@
 import React, { useState, useEffect } from 'react';
 import Image from 'next/image';
 import { Volume2, Sparkles, ChevronLeft, ChevronRight, X, BookOpen } from 'lucide-react';
-import confetti from 'canvas-confetti';
 import { motion, AnimatePresence } from 'motion/react';
 import { Animal } from '@/lib/animalsData';
 import { audioEngine } from '@/lib/audioEngine';
+import { playAnimalCelebration } from '@/lib/animalEffects';
 
 interface AnimalDetailModalProps {
   animal: Animal | null;
@@ -46,25 +46,13 @@ export const AnimalDetailModal: React.FC<AnimalDetailModalProps> = ({
   const handlePlaySound = (e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
     audioEngine.playAnimalSoundWithName(animal.id, animal.name, animal.soundType);
-
-    confetti({
-      particleCount: 24,
-      spread: 55,
-      origin: { y: 0.6 },
-      colors: ['#F59E0B', '#10B981', '#3B82F6', '#EC4899'],
-    });
+    playAnimalCelebration(animal, { x: 0.5, y: 0.55 });
   };
 
   const handlePlayFullStory = (e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
     audioEngine.playAnimalSoundAndFact(animal.id, animal.name, animal.soundType, animal.funFact);
-
-    confetti({
-      particleCount: 28,
-      spread: 60,
-      origin: { y: 0.6 },
-      colors: ['#0284C7', '#38BDF8', '#F59E0B', '#10B981'],
-    });
+    playAnimalCelebration(animal, { x: 0.5, y: 0.55 });
   };
 
   const handleSpeakName = () => {

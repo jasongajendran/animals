@@ -3,10 +3,10 @@
 import React, { useState, useCallback } from 'react';
 import Image from 'next/image';
 import { Volume2, RefreshCw, CheckCircle2, Star } from 'lucide-react';
-import confetti from 'canvas-confetti';
 import { motion } from 'motion/react';
 import { Animal, ANIMALS } from '@/lib/animalsData';
 import { audioEngine } from '@/lib/audioEngine';
+import { playAnimalCelebration } from '@/lib/animalEffects';
 
 function generateRound() {
   const targetIndex = Math.floor(Math.random() * ANIMALS.length);
@@ -58,13 +58,7 @@ export const AnimalGuessGame: React.FC = () => {
 
       audioEngine.playCheerFanfare();
       audioEngine.speakText(`Correct! It is the ${animal.name}!`);
-
-      confetti({
-        particleCount: 50,
-        spread: 60,
-        origin: { y: 0.6 },
-        colors: ['#F59E0B', '#10B981', '#3B82F6', '#EC4899'],
-      });
+      playAnimalCelebration(animal, { x: 0.5, y: 0.6 });
 
       setTimeout(() => {
         startNewRound();

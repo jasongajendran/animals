@@ -3,10 +3,10 @@
 import React, { useState, useEffect } from 'react';
 import Image from 'next/image';
 import { Volume2, Sparkles, BookOpen } from 'lucide-react';
-import confetti from 'canvas-confetti';
 import { motion } from 'motion/react';
 import { Animal } from '@/lib/animalsData';
 import { audioEngine } from '@/lib/audioEngine';
+import { playAnimalCelebration } from '@/lib/animalEffects';
 
 interface AnimalCardProps {
   animal: Animal;
@@ -36,15 +36,7 @@ export const AnimalCard: React.FC<AnimalCardProps> = ({ animal, onSelect }) => {
     const x = (rect.left + rect.width / 2) / window.innerWidth;
     const y = (rect.top + rect.height / 2) / window.innerHeight;
 
-    confetti({
-      particleCount: 20,
-      spread: 45,
-      origin: { x, y },
-      colors: ['#F59E0B', '#10B981', '#3B82F6', '#EC4899'],
-      ticks: 50,
-      gravity: 1.2,
-      scalar: 0.8,
-    });
+    playAnimalCelebration(animal, { x, y });
   };
 
   const handlePlayFullStory = (e: React.MouseEvent) => {
@@ -56,15 +48,7 @@ export const AnimalCard: React.FC<AnimalCardProps> = ({ animal, onSelect }) => {
     const x = (rect.left + rect.width / 2) / window.innerWidth;
     const y = (rect.top + rect.height / 2) / window.innerHeight;
 
-    confetti({
-      particleCount: 28,
-      spread: 60,
-      origin: { x, y },
-      colors: ['#0284C7', '#38BDF8', '#F59E0B', '#10B981'],
-      ticks: 50,
-      gravity: 1.2,
-      scalar: 0.85,
-    });
+    playAnimalCelebration(animal, { x, y });
   };
 
   const isCardActive = isPlayingSound || isReadingAll;

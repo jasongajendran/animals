@@ -2,14 +2,15 @@
 
 import React, { useState, useMemo } from 'react';
 import { Search, Sparkles, Shuffle, Play, Square } from 'lucide-react';
-import confetti from 'canvas-confetti';
 import { Header } from '@/components/Header';
 import { HabitatTabs } from '@/components/HabitatTabs';
 import { AnimalCard } from '@/components/AnimalCard';
 import { AnimalDetailModal } from '@/components/AnimalDetailModal';
 import { AnimalGuessGame } from '@/components/AnimalGuessGame';
+import { ScrollToTop } from '@/components/ScrollToTop';
 import { ANIMALS, HABITATS, Animal, Habitat } from '@/lib/animalsData';
 import { audioEngine } from '@/lib/audioEngine';
+import { playAnimalCelebration } from '@/lib/animalEffects';
 
 export default function Home() {
   const [currentMode, setCurrentMode] = useState<'gallery' | 'game'>('gallery');
@@ -142,13 +143,7 @@ export default function Home() {
     setSelectedAnimal(randomAnimal);
     audioEngine.playSparkleSound();
     audioEngine.playAnimalSoundWithName(randomAnimal.id, randomAnimal.name, randomAnimal.soundType);
-
-    confetti({
-      particleCount: 30,
-      spread: 60,
-      origin: { y: 0.5 },
-      colors: ['#F59E0B', '#10B981', '#3B82F6', '#EC4899'],
-    });
+    playAnimalCelebration(randomAnimal, { x: 0.5, y: 0.5 });
   };
 
   return (
@@ -261,6 +256,8 @@ export default function Home() {
         onNext={handleNextAnimal}
         onPrev={handlePrevAnimal}
       />
+
+      <ScrollToTop />
     </div>
   );
 }
