@@ -139,7 +139,7 @@ export const AnimalGuessGame: React.FC = () => {
                   fill
                   unoptimized
                   sizes="(max-width: 640px) 100vw, 33vw"
-                  className="object-cover"
+                  className="object-cover object-[center_top]"
                 />
               </div>
 

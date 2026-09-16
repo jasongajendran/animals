@@ -22,30 +22,48 @@ export const AnimalDetailModal: React.FC<AnimalDetailModalProps> = ({
   onNext,
 }) => {
   const [isPlayingSound, setIsPlayingSound] = useState(false);
+  const [isReadingAll, setIsReadingAll] = useState(false);
   const [isReadingFact, setIsReadingFact] = useState(false);
   const [erroredIds, setErroredIds] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
+    if (!animal) return;
+    const unsub = audioEngine.subscribeActiveAnimal((activeId, activeMode) => {
+      const isThis = activeId === animal.id;
+      setIsPlayingSound(isThis && activeMode === 'sound');
+      setIsReadingAll(isThis && activeMode === 'all');
+      setIsReadingFact(isThis && activeMode === 'fact');
+    });
     return () => {
+      unsub();
       audioEngine.stopAllAudio();
     };
-  }, [animal?.id]);
+  }, [animal]);
 
   if (!animal) return null;
   const hasError = !!erroredIds[animal.id];
 
   const handlePlaySound = (e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
-    setIsPlayingSound(true);
-    audioEngine.playAnimalSound(animal.soundType, () => {
-      setIsPlayingSound(false);
-    });
+    audioEngine.playAnimalSoundWithName(animal.id, animal.name, animal.soundType);
 
     confetti({
       particleCount: 24,
       spread: 55,
       origin: { y: 0.6 },
       colors: ['#F59E0B', '#10B981', '#3B82F6', '#EC4899'],
+    });
+  };
+
+  const handlePlayFullStory = (e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    audioEngine.playAnimalSoundAndFact(animal.id, animal.name, animal.soundType, animal.funFact);
+
+    confetti({
+      particleCount: 28,
+      spread: 60,
+      origin: { y: 0.6 },
+      colors: ['#0284C7', '#38BDF8', '#F59E0B', '#10B981'],
     });
   };
 
@@ -110,7 +128,7 @@ export const AnimalDetailModal: React.FC<AnimalDetailModalProps> = ({
 
           {/* Body */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-6">
-            {/* Image */}
+            {/* Image Container: image takes full space with face visible top-aligned */}
             <div
               onClick={() => handlePlaySound()}
               className="relative aspect-4/3 w-full overflow-hidden rounded-2xl bg-slate-100 border border-slate-200 cursor-pointer group"
@@ -126,7 +144,8 @@ export const AnimalDetailModal: React.FC<AnimalDetailModalProps> = ({
                   fill
                   unoptimized
                   priority
-                  className="object-cover transition-transform duration-300 group-hover:scale-105"
+                  sizes="(max-width: 768px) 100vw, 50vw"
+                  className="object-cover object-[center_top] transition-transform duration-300 group-hover:scale-105"
                   onError={() =>
                     setErroredIds((prev) => ({ ...prev, [animal.id]: true }))
                   }
@@ -137,28 +156,50 @@ export const AnimalDetailModal: React.FC<AnimalDetailModalProps> = ({
             {/* Content & Actions */}
             <div className="flex flex-col justify-between space-y-4">
               <div className="space-y-3">
-                {/* Sound button */}
-                <button
-                  id="btn-modal-play-sound"
-                  onClick={() => handlePlaySound()}
-                  className={`flex w-full items-center justify-center gap-2 rounded-xl py-3 px-4 text-base font-bold shadow-xs transition-all active:scale-95 ${
-                    isPlayingSound
-                      ? 'bg-amber-400 text-amber-950 ring-2 ring-amber-300'
-                      : 'bg-amber-500 hover:bg-amber-600 text-white'
-                  }`}
-                >
-                  {isPlayingSound ? (
-                    <>
-                      <Sparkles className="h-5 w-5 animate-spin text-amber-950" />
-                      <span>Playing Sound...</span>
-                    </>
-                  ) : (
-                    <>
-                      <Volume2 className="h-5 w-5" />
-                      <span>Play Sound</span>
-                    </>
-                  )}
-                </button>
+                {/* Main Action Row */}
+                <div className="flex items-center gap-2">
+                  {/* Sound button */}
+                  <button
+                    id="btn-modal-play-sound"
+                    onClick={() => handlePlaySound()}
+                    className={`flex-1 flex items-center justify-center gap-2 rounded-xl py-3 px-4 text-base font-bold shadow-xs transition-all active:scale-95 ${
+                      isPlayingSound
+                        ? 'bg-amber-400 text-amber-950 ring-2 ring-amber-300'
+                        : 'bg-amber-500 hover:bg-amber-600 text-white'
+                    }`}
+                  >
+                    {isPlayingSound ? (
+                      <>
+                        <Sparkles className="h-5 w-5 animate-spin text-amber-950" />
+                        <span>Playing Sound...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Volume2 className="h-5 w-5" />
+                        <span>Play Sound</span>
+                      </>
+                    )}
+                  </button>
+
+                  {/* Icon without text to read facts too along with animal name sound and facts */}
+                  <button
+                    id="btn-modal-read-all"
+                    onClick={() => handlePlayFullStory()}
+                    aria-label={`Listen to ${animal.name} name, sound, and fun fact`}
+                    title={`Listen to ${animal.name} name, sound, and fun fact`}
+                    className={`flex h-12 w-12 items-center justify-center rounded-xl transition-all active:scale-95 shrink-0 ${
+                      isReadingAll
+                        ? 'bg-sky-400 text-sky-950 ring-2 ring-sky-300 shadow-sm'
+                        : 'bg-sky-50 text-sky-700 hover:bg-sky-100 hover:text-sky-900 border border-sky-200/80'
+                    }`}
+                  >
+                    {isReadingAll ? (
+                      <Sparkles className="h-6 w-6 animate-spin text-sky-950" />
+                    ) : (
+                      <BookOpen className="h-6 w-6 text-sky-700" />
+                    )}
+                  </button>
+                </div>
 
                 {/* Pronounce button */}
                 <button
@@ -177,18 +218,39 @@ export const AnimalDetailModal: React.FC<AnimalDetailModalProps> = ({
                   {animal.funFact}
                 </p>
 
-                <button
-                  id="btn-modal-read-fact"
-                  onClick={handleReadFact}
-                  className={`mt-3.5 flex items-center justify-center gap-2 rounded-xl py-2 px-3 text-sm font-bold transition-all active:scale-95 ${
-                    isReadingFact
-                      ? 'bg-sky-400 text-sky-950 ring-2 ring-sky-300'
-                      : 'bg-white hover:bg-slate-100 text-slate-800 border border-slate-300'
-                  }`}
-                >
-                  <BookOpen className="h-4 w-4 text-slate-600" />
-                  <span>{isReadingFact ? 'Playing Fact...' : 'Read Fact'}</span>
-                </button>
+                <div className="mt-3.5 flex items-center gap-2">
+                  <button
+                    id="btn-modal-read-fact"
+                    onClick={handleReadFact}
+                    className={`flex-1 flex items-center justify-center gap-2 rounded-xl py-2 px-3 text-sm font-bold transition-all active:scale-95 ${
+                      isReadingFact
+                        ? 'bg-sky-400 text-sky-950 ring-2 ring-sky-300'
+                        : 'bg-white hover:bg-slate-100 text-slate-800 border border-slate-300'
+                    }`}
+                  >
+                    <BookOpen className="h-4 w-4 text-slate-600" />
+                    <span>{isReadingFact ? 'Playing Fact...' : 'Read Fact'}</span>
+                  </button>
+
+                  {/* Icon without text button inside fact box */}
+                  <button
+                    id="btn-modal-fact-icon-only"
+                    onClick={() => handlePlayFullStory()}
+                    aria-label={`Play ${animal.name} story: name, sound, and fact`}
+                    title={`Play ${animal.name} story: name, sound, and fact`}
+                    className={`flex h-9 w-9 items-center justify-center rounded-xl transition-all active:scale-95 shrink-0 ${
+                      isReadingAll
+                        ? 'bg-sky-400 text-sky-950 ring-2 ring-sky-300 shadow-xs'
+                        : 'bg-white hover:bg-slate-100 text-sky-700 border border-slate-300'
+                    }`}
+                  >
+                    {isReadingAll ? (
+                      <Sparkles className="h-4 w-4 animate-spin text-sky-950" />
+                    ) : (
+                      <BookOpen className="h-4 w-4 text-sky-700" />
+                    )}
+                  </button>
+                </div>
               </div>
 
               {/* Prev / Next controls */}

@@ -141,7 +141,7 @@ export default function Home() {
     const randomAnimal = ANIMALS[Math.floor(Math.random() * ANIMALS.length)];
     setSelectedAnimal(randomAnimal);
     audioEngine.playSparkleSound();
-    audioEngine.playAnimalSound(randomAnimal.soundType);
+    audioEngine.playAnimalSoundWithName(randomAnimal.id, randomAnimal.name, randomAnimal.soundType);
 
     confetti({
       particleCount: 30,

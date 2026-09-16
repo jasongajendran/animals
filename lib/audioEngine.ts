@@ -152,8 +152,57 @@ class AudioEngine {
   private bgMusicInterval: NodeJS.Timeout | null = null;
   private ctx: AudioContext | null = null;
 
+  // Session & Active State Management for Instant Switching & Spinner Control
+  private currentSessionId: number = 0;
+  private activeAnimalId: string | null = null;
+  private activeMode: 'sound' | 'fact' | 'all' | null = null;
+  private activeAnimalListeners: Set<(id: string | null, mode: 'sound' | 'fact' | 'all' | null) => void> = new Set();
+  private nameSpeechTimeout: NodeJS.Timeout | null = null;
+  private audioWatchdogTimeout: NodeJS.Timeout | null = null;
+  private activeUtterance: SpeechSynthesisUtterance | null = null;
+  private activeCallback: (() => void) | null = null;
+
   constructor() {
     // Lazy initialized on first user interaction
+  }
+
+  public getActiveAnimalId(): string | null {
+    return this.activeAnimalId;
+  }
+
+  public getActiveMode(): 'sound' | 'fact' | 'all' | null {
+    return this.activeMode;
+  }
+
+  public subscribeActiveAnimal(
+    listener: (id: string | null, mode: 'sound' | 'fact' | 'all' | null) => void
+  ): () => void {
+    this.activeAnimalListeners.add(listener);
+    // Immediately notify listener of current state
+    try {
+      listener(this.activeAnimalId, this.activeMode);
+    } catch {
+      // ignore
+    }
+    return () => {
+      this.activeAnimalListeners.delete(listener);
+    };
+  }
+
+  private setActiveAnimal(id: string | null, mode: 'sound' | 'fact' | 'all' | null = null) {
+    this.activeAnimalId = id;
+    this.activeMode = id ? mode : null;
+    this.activeAnimalListeners.forEach((listener) => {
+      try {
+        listener(this.activeAnimalId, this.activeMode);
+      } catch {
+        // ignore
+      }
+    });
+  }
+
+  private setActiveAnimalId(id: string | null) {
+    this.setActiveAnimal(id, id ? 'sound' : null);
   }
 
   private initContext(): AudioContext | null {
@@ -279,75 +328,440 @@ class AudioEngine {
   }
 
   // --- AUTHENTIC ANIMAL SOUND AUDIO PLAYBACK VIA EXTERNAL GLOBAL APIS & CDNS ---
-  public playAnimalSound(soundType: string, onEnded?: () => void) {
-    if (this.isMuted) {
-      if (onEnded) onEnded();
-      return;
+  public playAnimalSound(soundType: string, onEnded?: () => void, animalId?: string) {
+    const sessionId = ++this.currentSessionId;
+
+    if (this.nameSpeechTimeout) {
+      clearTimeout(this.nameSpeechTimeout);
+      this.nameSpeechTimeout = null;
     }
+    if (this.audioWatchdogTimeout) {
+      clearTimeout(this.audioWatchdogTimeout);
+      this.audioWatchdogTimeout = null;
+    }
+
+    if (this.activeCallback) {
+      const prevCb = this.activeCallback;
+      this.activeCallback = null;
+      try {
+        prevCb();
+      } catch {
+        // ignore
+      }
+    }
+    this.activeCallback = onEnded || null;
 
     this.stopSpeaking();
     this.stopCurrentAudio();
 
-    if (typeof window === 'undefined') {
-      if (onEnded) onEnded();
+    this.setActiveAnimalId(animalId || null);
+
+    if (this.isMuted || typeof window === 'undefined') {
+      this.finishPlayback(sessionId);
       return;
     }
 
     const cleanSoundType = soundType.toLowerCase().replace(/[^a-z0-9_-]/g, '');
     const filename = EXTERNAL_ANIMAL_FILENAME_MAP[cleanSoundType] || 'horse.mp3';
 
-    // Prioritized list of high-availability external streaming URLs
     const candidateUrls: string[] = [
       `${CDN_BASE_URL}${filename}`,
       `${RAW_BASE_URL}${filename}`,
     ];
 
-    // High quality dedicated species audio from Wikimedia Commons
-    if (cleanSoundType === 'penguin') {
-      candidateUrls.unshift('https://upload.wikimedia.org/wikipedia/commons/9/97/King_Penguin_Rookery_Audio.oga');
-    } else if (cleanSoundType === 'whale') {
-      candidateUrls.unshift('https://upload.wikimedia.org/wikipedia/commons/1/1a/Humpbackwhale_singing.ogg');
+    this.playAudioCandidates(sessionId, cleanSoundType, candidateUrls, 0);
+  }
+
+  // --- PLAY ANIMAL SOUND WITH SPOKEN NAME FIRST FOR KIDS ---
+  public playAnimalSoundWithName(
+    arg1: string,
+    arg2: string,
+    arg3?: string | (() => void),
+    arg4?: () => void
+  ) {
+    let animalId: string | null = null;
+    let animalName: string = '';
+    let soundType: string = '';
+    let onEnded: (() => void) | undefined;
+
+    if (typeof arg3 === 'function') {
+      animalName = arg1;
+      soundType = arg2;
+      onEnded = arg3;
+      animalId = null;
+    } else if (typeof arg3 === 'string') {
+      animalId = arg1;
+      animalName = arg2;
+      soundType = arg3;
+      onEnded = arg4;
+    } else {
+      animalName = arg1;
+      soundType = arg2;
     }
 
-    let candidateIndex = 0;
+    const sessionId = ++this.currentSessionId;
 
-    const playNextCandidate = () => {
-      if (candidateIndex >= candidateUrls.length) {
-        // All remote streaming failed or client is strictly offline: vocal backup
-        this.speakOnomatopoeia(cleanSoundType, onEnded);
-        return;
+    if (this.nameSpeechTimeout) {
+      clearTimeout(this.nameSpeechTimeout);
+      this.nameSpeechTimeout = null;
+    }
+    if (this.audioWatchdogTimeout) {
+      clearTimeout(this.audioWatchdogTimeout);
+      this.audioWatchdogTimeout = null;
+    }
+
+    if (this.activeCallback) {
+      const prevCb = this.activeCallback;
+      this.activeCallback = null;
+      try {
+        prevCb();
+      } catch {
+        // ignore
+      }
+    }
+    this.activeCallback = onEnded || null;
+
+    this.stopSpeaking();
+    this.stopCurrentAudio();
+
+    this.setActiveAnimal(animalId, 'sound');
+
+    if (this.isMuted || typeof window === 'undefined') {
+      this.finishPlayback(sessionId);
+      return;
+    }
+
+    const cleanSoundType = soundType.toLowerCase().replace(/[^a-z0-9_-]/g, '');
+    const filename = EXTERNAL_ANIMAL_FILENAME_MAP[cleanSoundType] || 'horse.mp3';
+    const candidateUrls: string[] = [
+      `${CDN_BASE_URL}${filename}`,
+      `${RAW_BASE_URL}${filename}`,
+    ];
+
+    let audioTriggered = false;
+    const triggerAudio = () => {
+      if (this.currentSessionId !== sessionId) return;
+      if (audioTriggered) return;
+      audioTriggered = true;
+
+      if (this.nameSpeechTimeout) {
+        clearTimeout(this.nameSpeechTimeout);
+        this.nameSpeechTimeout = null;
+      }
+      this.playAudioCandidates(sessionId, cleanSoundType, candidateUrls, 0);
+    };
+
+    // Safety timeout: proceed to sound if speech takes > 1.2s or hangs
+    this.nameSpeechTimeout = setTimeout(triggerAudio, 1200);
+
+    if ('speechSynthesis' in window) {
+      try {
+        const utterance = new SpeechSynthesisUtterance(animalName);
+        utterance.rate = 1.1;
+        utterance.pitch = 1.18;
+        utterance.volume = this.volume;
+        utterance.lang = 'en-GB';
+
+        const voice = this.findYoungBritishFemaleVoice();
+        if (voice) {
+          utterance.voice = voice;
+        }
+
+        utterance.onend = () => {
+          if (this.currentSessionId !== sessionId) return;
+          triggerAudio();
+        };
+
+        utterance.onerror = (e) => {
+          if (this.currentSessionId !== sessionId) return;
+          // If cancelled due to an animal switch, do NOT trigger old audio
+          if (e.error === 'canceled' || e.error === 'interrupted') return;
+          triggerAudio();
+        };
+
+        this.activeUtterance = utterance;
+        window.speechSynthesis.speak(utterance);
+      } catch {
+        triggerAudio();
+      }
+    } else {
+      triggerAudio();
+    }
+  }
+
+  // --- PLAY ANIMAL NAME, SOUND, AND FUN FACT IN ONE CONTINUOUS KIDS' AUDIO TOUR ---
+  public playAnimalSoundAndFact(
+    animalId: string,
+    animalName: string,
+    soundType: string,
+    funFact: string,
+    onEnded?: () => void
+  ) {
+    const sessionId = ++this.currentSessionId;
+
+    if (this.nameSpeechTimeout) {
+      clearTimeout(this.nameSpeechTimeout);
+      this.nameSpeechTimeout = null;
+    }
+    if (this.audioWatchdogTimeout) {
+      clearTimeout(this.audioWatchdogTimeout);
+      this.audioWatchdogTimeout = null;
+    }
+
+    if (this.activeCallback) {
+      const prevCb = this.activeCallback;
+      this.activeCallback = null;
+      try {
+        prevCb();
+      } catch {
+        // ignore
+      }
+    }
+    this.activeCallback = onEnded || null;
+
+    this.stopSpeaking();
+    this.stopCurrentAudio();
+
+    this.setActiveAnimal(animalId, 'all');
+
+    if (this.isMuted || typeof window === 'undefined') {
+      this.finishPlayback(sessionId);
+      return;
+    }
+
+    const cleanSoundType = soundType.toLowerCase().replace(/[^a-z0-9_-]/g, '');
+    const filename = EXTERNAL_ANIMAL_FILENAME_MAP[cleanSoundType] || 'horse.mp3';
+    const candidateUrls: string[] = [
+      `${CDN_BASE_URL}${filename}`,
+      `${RAW_BASE_URL}${filename}`,
+    ];
+
+    let audioTriggered = false;
+    const triggerAudio = () => {
+      if (this.currentSessionId !== sessionId) return;
+      if (audioTriggered) return;
+      audioTriggered = true;
+
+      if (this.nameSpeechTimeout) {
+        clearTimeout(this.nameSpeechTimeout);
+        this.nameSpeechTimeout = null;
       }
 
-      const currentUrl = candidateUrls[candidateIndex++];
+      // Step 2: Play animal sound, then trigger Step 3: Speak fun fact
+      this.playAudioCandidates(sessionId, cleanSoundType, candidateUrls, 0, () => {
+        if (this.currentSessionId !== sessionId) return;
+        this.speakFactNarration(sessionId, funFact, () => {
+          this.finishPlayback(sessionId);
+        });
+      });
+    };
+
+    // Step 1: Speak animal name
+    this.nameSpeechTimeout = setTimeout(triggerAudio, 1200);
+
+    if ('speechSynthesis' in window) {
       try {
-        const audio = new Audio(currentUrl);
-        audio.volume = this.volume;
-        this.currentAudio = audio;
+        const utterance = new SpeechSynthesisUtterance(animalName);
+        utterance.rate = 1.05;
+        utterance.pitch = 1.18;
+        utterance.volume = this.volume;
+        utterance.lang = 'en-GB';
 
-        audio.onended = () => {
-          this.currentAudio = null;
-          if (onEnded) onEnded();
-        };
-
-        audio.onerror = () => {
-          this.currentAudio = null;
-          playNextCandidate();
-        };
-
-        const playPromise = audio.play();
-        if (playPromise !== undefined) {
-          playPromise.catch(() => {
-            this.currentAudio = null;
-            playNextCandidate();
-          });
+        const voice = this.findYoungBritishFemaleVoice();
+        if (voice) {
+          utterance.voice = voice;
         }
+
+        utterance.onend = () => {
+          if (this.currentSessionId !== sessionId) return;
+          triggerAudio();
+        };
+
+        utterance.onerror = (e) => {
+          if (this.currentSessionId !== sessionId) return;
+          if (e.error === 'canceled' || e.error === 'interrupted') return;
+          triggerAudio();
+        };
+
+        this.activeUtterance = utterance;
+        window.speechSynthesis.speak(utterance);
       } catch {
-        playNextCandidate();
+        triggerAudio();
+      }
+    } else {
+      triggerAudio();
+    }
+  }
+
+  private speakFactNarration(sessionId: number, funFact: string, onDone: () => void) {
+    if (this.currentSessionId !== sessionId) return;
+
+    if (this.audioWatchdogTimeout) {
+      clearTimeout(this.audioWatchdogTimeout);
+      this.audioWatchdogTimeout = null;
+    }
+
+    let factCompleted = false;
+    const finishFact = () => {
+      if (this.currentSessionId !== sessionId) return;
+      if (factCompleted) return;
+      factCompleted = true;
+
+      if (this.audioWatchdogTimeout) {
+        clearTimeout(this.audioWatchdogTimeout);
+        this.audioWatchdogTimeout = null;
+      }
+      onDone();
+    };
+
+    // Generous watchdog timeout for fact reading (15 seconds)
+    this.audioWatchdogTimeout = setTimeout(() => {
+      finishFact();
+    }, 15000);
+
+    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+      try {
+        const utterance = new SpeechSynthesisUtterance(funFact);
+        utterance.rate = 0.98;
+        utterance.pitch = 1.15;
+        utterance.volume = this.volume;
+        utterance.lang = 'en-GB';
+
+        const voice = this.findYoungBritishFemaleVoice();
+        if (voice) {
+          utterance.voice = voice;
+        }
+
+        utterance.onend = () => {
+          finishFact();
+        };
+
+        utterance.onerror = (e) => {
+          if (e.error === 'canceled' || e.error === 'interrupted') return;
+          finishFact();
+        };
+
+        this.activeUtterance = utterance;
+        window.speechSynthesis.speak(utterance);
+      } catch {
+        finishFact();
+      }
+    } else {
+      finishFact();
+    }
+  }
+
+  private playAudioCandidates(
+    sessionId: number,
+    cleanSoundType: string,
+    candidateUrls: string[],
+    candidateIndex: number,
+    onSoundEnded?: () => void
+  ) {
+    if (this.currentSessionId !== sessionId) return;
+
+    let soundCompleted = false;
+    const handleSoundComplete = () => {
+      if (this.currentSessionId !== sessionId) return;
+      if (soundCompleted) return;
+      soundCompleted = true;
+
+      if (this.audioWatchdogTimeout) {
+        clearTimeout(this.audioWatchdogTimeout);
+        this.audioWatchdogTimeout = null;
+      }
+
+      if (onSoundEnded) {
+        onSoundEnded();
+      } else {
+        this.finishPlayback(sessionId);
       }
     };
 
-    // Invoke immediately to satisfy browser user gesture requirements
-    playNextCandidate();
+    if (candidateIndex >= candidateUrls.length) {
+      this.speakOnomatopoeia(cleanSoundType, handleSoundComplete);
+      return;
+    }
+
+    const currentUrl = candidateUrls[candidateIndex];
+    try {
+      const audio = new Audio(currentUrl);
+      audio.volume = this.volume;
+      this.currentAudio = audio;
+
+      audio.onended = () => {
+        handleSoundComplete();
+      };
+
+      audio.onerror = () => {
+        if (this.currentSessionId !== sessionId) return;
+        if (soundCompleted) return;
+        soundCompleted = true;
+        if (this.audioWatchdogTimeout) {
+          clearTimeout(this.audioWatchdogTimeout);
+          this.audioWatchdogTimeout = null;
+        }
+        this.playAudioCandidates(sessionId, cleanSoundType, candidateUrls, candidateIndex + 1, onSoundEnded);
+      };
+
+      // Watchdog safety timeout for audio playback (max 5 seconds)
+      if (this.audioWatchdogTimeout) {
+        clearTimeout(this.audioWatchdogTimeout);
+      }
+      this.audioWatchdogTimeout = setTimeout(() => {
+        handleSoundComplete();
+      }, 5000);
+
+      const playPromise = audio.play();
+      if (playPromise !== undefined) {
+        playPromise.catch((err) => {
+          if (this.currentSessionId !== sessionId) return;
+          if (err && err.name === 'AbortError') return;
+          if (soundCompleted) return;
+          soundCompleted = true;
+          if (this.audioWatchdogTimeout) {
+            clearTimeout(this.audioWatchdogTimeout);
+            this.audioWatchdogTimeout = null;
+          }
+          this.playAudioCandidates(sessionId, cleanSoundType, candidateUrls, candidateIndex + 1, onSoundEnded);
+        });
+      }
+    } catch {
+      if (this.currentSessionId !== sessionId) return;
+      if (soundCompleted) return;
+      soundCompleted = true;
+      if (this.audioWatchdogTimeout) {
+        clearTimeout(this.audioWatchdogTimeout);
+        this.audioWatchdogTimeout = null;
+      }
+      this.playAudioCandidates(sessionId, cleanSoundType, candidateUrls, candidateIndex + 1, onSoundEnded);
+    }
+  }
+
+  private finishPlayback(sessionId: number) {
+    if (this.currentSessionId !== sessionId) return;
+
+    if (this.nameSpeechTimeout) {
+      clearTimeout(this.nameSpeechTimeout);
+      this.nameSpeechTimeout = null;
+    }
+    if (this.audioWatchdogTimeout) {
+      clearTimeout(this.audioWatchdogTimeout);
+      this.audioWatchdogTimeout = null;
+    }
+
+    this.stopCurrentAudio();
+    this.setActiveAnimal(null, null);
+
+    if (this.activeCallback) {
+      const cb = this.activeCallback;
+      this.activeCallback = null;
+      try {
+        cb();
+      } catch {
+        // ignore
+      }
+    }
   }
 
   // --- BRITISH FEMALE ONOMATOPOEIA FALLBACK ---
@@ -380,8 +794,11 @@ class AudioEngine {
   public stopCurrentAudio() {
     if (this.currentAudio) {
       try {
+        this.currentAudio.onended = null;
+        this.currentAudio.onerror = null;
         this.currentAudio.pause();
         this.currentAudio.currentTime = 0;
+        this.currentAudio.removeAttribute('src');
       } catch {
         // ignore
       }
@@ -589,6 +1006,11 @@ class AudioEngine {
   }
 
   public stopSpeaking() {
+    if (this.activeUtterance) {
+      this.activeUtterance.onend = null;
+      this.activeUtterance.onerror = null;
+      this.activeUtterance = null;
+    }
     if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
       try {
         window.speechSynthesis.cancel();
@@ -600,9 +1022,28 @@ class AudioEngine {
   }
 
   public stopAllAudio() {
+    this.currentSessionId++;
+    if (this.nameSpeechTimeout) {
+      clearTimeout(this.nameSpeechTimeout);
+      this.nameSpeechTimeout = null;
+    }
+    if (this.audioWatchdogTimeout) {
+      clearTimeout(this.audioWatchdogTimeout);
+      this.audioWatchdogTimeout = null;
+    }
     this.stopCurrentAudio();
     this.stopSpeaking();
     this.stopBackgroundMusic();
+    this.setActiveAnimal(null, null);
+    if (this.activeCallback) {
+      const cb = this.activeCallback;
+      this.activeCallback = null;
+      try {
+        cb();
+      } catch {
+        // ignore
+      }
+    }
   }
 }
 
