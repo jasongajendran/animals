@@ -214,9 +214,9 @@ export default function Home() {
               </div>
             </div>
 
-            {/* Animals Grid */}
+            {/* Animals Grid: 1 animal per row on mobile & tablet */}
             {filteredAnimals.length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-6 sm:gap-8">
+              <div className="grid grid-cols-1 md:grid-cols-1 lg:grid-cols-1 xl:grid-cols-2 gap-6 sm:gap-8 max-w-2xl xl:max-w-5xl mx-auto w-full">
                 {filteredAnimals.map((animal) => (
                   <AnimalCard
                     key={animal.id}

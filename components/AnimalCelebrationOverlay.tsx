@@ -141,29 +141,24 @@ export const AnimalCelebrationOverlay: React.FC = () => {
                 }}
               />
 
-              {/* Large, High-Contrast Distinct Action Banner Tag */}
-              <motion.div
-                initial={{ opacity: 0, scale: 0.6, y: 15 }}
-                animate={{ opacity: 1, scale: 1, y: -45 }}
-                exit={{ opacity: 0, scale: 0.85, y: -70 }}
-                transition={{ duration: 0.35, ease: 'backOut' }}
-                style={{
-                  position: 'absolute',
-                  left: `${safeBannerX}%`,
-                  top: `${safeBannerY}%`,
-                  transform: 'translate(-50%, -50%)',
-                  maxWidth: 'calc(100vw - 32px)',
-                }}
-                className="flex items-center gap-2 px-3.5 sm:px-4 py-1.5 sm:py-2 rounded-full shadow-2xl border-2 border-white/95 text-white font-extrabold text-xs sm:text-sm md:text-base backdrop-blur-md shrink-0"
-              >
-                <div
-                  className={`absolute inset-0 rounded-full bg-gradient-to-r ${celeb.data.accentBg} opacity-95 -z-10 shadow-lg`}
-                />
-                <span className="text-xl sm:text-2xl drop-shadow-md shrink-0 select-none">{celeb.data.emoji}</span>
-                <span className="tracking-wide text-white drop-shadow font-extrabold whitespace-nowrap overflow-visible">
-                  {celeb.data.tagline}
-                </span>
-              </motion.div>
+              {/* Large, High-Contrast Distinct Action Banner Tag - Centered via Flexbox Wrapper */}
+              <div className="fixed top-14 sm:top-18 inset-x-0 flex justify-center items-center pointer-events-none z-90 px-4">
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.75, y: -15 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.85, y: -20 }}
+                  transition={{ duration: 0.35, ease: 'backOut' }}
+                  className="relative flex items-center justify-center gap-2.5 px-5 sm:px-6 py-2 sm:py-2.5 rounded-full shadow-2xl border-2 border-white/95 text-white font-extrabold text-sm sm:text-base md:text-lg backdrop-blur-md min-h-[46px] sm:min-h-[52px] max-w-[92vw] overflow-hidden"
+                >
+                  <div
+                    className={`absolute inset-0 rounded-full bg-gradient-to-r ${celeb.data.accentBg} opacity-95 -z-10 shadow-lg`}
+                  />
+                  <span className="text-2xl sm:text-3xl drop-shadow-md shrink-0 select-none">{celeb.data.emoji}</span>
+                  <span className="tracking-wide text-white drop-shadow font-extrabold whitespace-nowrap text-center">
+                    {celeb.data.tagline}
+                  </span>
+                </motion.div>
+              </div>
 
               {/* High-Definition, Large Floating Visual Particles */}
               {celeb.particles.map((p) => (
