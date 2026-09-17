@@ -358,6 +358,26 @@ class AudioEngine {
     }
   }
 
+  private getCandidateUrls(filename: string): string[] {
+    const urls: string[] = [
+      `${CDN_BASE_URL}${filename}`,
+      `${RAW_BASE_URL}${filename}`,
+    ];
+    if (typeof window !== 'undefined') {
+      const origin = window.location.origin;
+      let path = window.location.pathname || '';
+      if (path.endsWith('/')) {
+        path = path.slice(0, -1);
+      }
+      if (path && path !== '/') {
+        urls.push(`${origin}${path}/assets/animals/${filename}`);
+      }
+      urls.push(`${origin}/assets/animals/${filename}`);
+      urls.push(`/assets/animals/${filename}`);
+    }
+    return urls;
+  }
+
   // --- AUTHENTIC ANIMAL SOUND AUDIO PLAYBACK VIA EXTERNAL GLOBAL APIS & CDNS ---
   public playAnimalSound(soundType: string, onEnded?: () => void, animalId?: string) {
     const sessionId = ++this.currentSessionId;
@@ -394,11 +414,7 @@ class AudioEngine {
 
     const cleanSoundType = soundType.toLowerCase().replace(/[^a-z0-9_-]/g, '');
     const filename = EXTERNAL_ANIMAL_FILENAME_MAP[cleanSoundType] || 'horse.mp3';
-
-    const candidateUrls: string[] = [
-      `${CDN_BASE_URL}${filename}`,
-      `${RAW_BASE_URL}${filename}`,
-    ];
+    const candidateUrls = this.getCandidateUrls(filename);
 
     this.playAudioCandidates(sessionId, cleanSoundType, candidateUrls, 0);
   }
@@ -464,10 +480,7 @@ class AudioEngine {
 
     const cleanSoundType = soundType.toLowerCase().replace(/[^a-z0-9_-]/g, '');
     const filename = EXTERNAL_ANIMAL_FILENAME_MAP[cleanSoundType] || 'horse.mp3';
-    const candidateUrls: string[] = [
-      `${CDN_BASE_URL}${filename}`,
-      `${RAW_BASE_URL}${filename}`,
-    ];
+    const candidateUrls = this.getCandidateUrls(filename);
 
     let audioTriggered = false;
     const triggerAudio = () => {
@@ -562,10 +575,7 @@ class AudioEngine {
 
     const cleanSoundType = soundType.toLowerCase().replace(/[^a-z0-9_-]/g, '');
     const filename = EXTERNAL_ANIMAL_FILENAME_MAP[cleanSoundType] || 'horse.mp3';
-    const candidateUrls: string[] = [
-      `${CDN_BASE_URL}${filename}`,
-      `${RAW_BASE_URL}${filename}`,
-    ];
+    const candidateUrls = this.getCandidateUrls(filename);
 
     let audioTriggered = false;
     const triggerAudio = () => {
@@ -710,13 +720,15 @@ class AudioEngine {
     };
 
     if (candidateIndex >= candidateUrls.length) {
-      this.speakOnomatopoeia(cleanSoundType, handleSoundComplete);
+      this.synthesizeAnimalSound(cleanSoundType, handleSoundComplete);
       return;
     }
 
     const currentUrl = candidateUrls[candidateIndex];
     try {
-      const audio = new Audio(currentUrl);
+      const audio = new Audio();
+      audio.crossOrigin = 'anonymous';
+      audio.src = currentUrl;
       audio.volume = this.volume;
       this.currentAudio = audio;
 
@@ -795,31 +807,376 @@ class AudioEngine {
     }
   }
 
-  // --- BRITISH FEMALE ONOMATOPOEIA FALLBACK ---
-  private speakOnomatopoeia(soundType: string, onEnded?: () => void) {
-    const soundSounds: Record<string, string> = {
-      cow: 'Moo!',
-      horse: 'Neigh!',
-      donkey: 'Hee-haw!',
-      sheep: 'Baa!',
-      goat: 'Maa!',
-      pig: 'Oink oink!',
-      dog: 'Woof woof!',
-      cat: 'Meow!',
-      duck: 'Quack quack!',
-      rooster: 'Cock-a-doodle-doo!',
-      lion: 'Roar!',
-      tiger: 'Roar!',
-      elephant: 'Trumpet call!',
-      wolf: 'Awoo!',
-      frog: 'Ribbit ribbit!',
-      bee: 'Buzzz!',
-      owl: 'Hoot hoot!',
-      snake: 'Hisssss!'
-    };
+  // --- WEB AUDIO API REALISTIC ANIMAL ACOUSTIC SYNTHESIZER ---
+  private synthesizeAnimalSound(soundType: string, onEnded: () => void) {
+    const ctx = this.initContext();
+    if (!ctx) {
+      onEnded();
+      return;
+    }
 
-    const text = soundSounds[soundType] || `${soundType} sound!`;
-    this.speakText(text, 1.0, 1.25, onEnded);
+    const now = ctx.currentTime;
+    const vol = this.volume;
+
+    try {
+      switch (soundType) {
+        case 'chicken':
+        case 'rooster': {
+          const isRooster = soundType === 'rooster';
+          const pulses = isRooster ? 3 : 2;
+          for (let i = 0; i < pulses; i++) {
+            const startTime = now + i * 0.18;
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            const filter = ctx.createBiquadFilter();
+
+            osc.type = 'sawtooth';
+            filter.type = 'bandpass';
+            filter.frequency.setValueAtTime(800 + i * 200, startTime);
+            filter.Q.setValueAtTime(3, startTime);
+
+            osc.frequency.setValueAtTime(isRooster ? 450 : 350, startTime);
+            osc.frequency.exponentialRampToValueAtTime(isRooster ? 720 : 210, startTime + 0.12);
+
+            gain.gain.setValueAtTime(0.001, startTime);
+            gain.gain.linearRampToValueAtTime(0.35 * vol, startTime + 0.02);
+            gain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.15);
+
+            osc.connect(filter);
+            filter.connect(gain);
+            gain.connect(ctx.destination);
+
+            osc.start(startTime);
+            osc.stop(startTime + 0.16);
+          }
+          setTimeout(onEnded, (isRooster ? 1.0 : 0.6) * 1000);
+          break;
+        }
+
+        case 'duck':
+        case 'goose':
+        case 'swan': {
+          for (let i = 0; i < 2; i++) {
+            const startTime = now + i * 0.22;
+            const osc = ctx.createOscillator();
+            const filter = ctx.createBiquadFilter();
+            const gain = ctx.createGain();
+
+            osc.type = 'sawtooth';
+            filter.type = 'bandpass';
+            filter.frequency.setValueAtTime(650, startTime);
+            filter.frequency.exponentialRampToValueAtTime(320, startTime + 0.15);
+            filter.Q.setValueAtTime(4, startTime);
+
+            osc.frequency.setValueAtTime(320, startTime);
+            osc.frequency.linearRampToValueAtTime(240, startTime + 0.15);
+
+            gain.gain.setValueAtTime(0.001, startTime);
+            gain.gain.linearRampToValueAtTime(0.38 * vol, startTime + 0.02);
+            gain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.18);
+
+            osc.connect(filter);
+            filter.connect(gain);
+            gain.connect(ctx.destination);
+
+            osc.start(startTime);
+            osc.stop(startTime + 0.2);
+          }
+          setTimeout(onEnded, 600);
+          break;
+        }
+
+        case 'cow':
+        case 'buffalo':
+        case 'ox':
+        case 'bison': {
+          const osc = ctx.createOscillator();
+          const osc2 = ctx.createOscillator();
+          const gain = ctx.createGain();
+          const filter = ctx.createBiquadFilter();
+
+          osc.type = 'sawtooth';
+          osc2.type = 'triangle';
+
+          osc.frequency.setValueAtTime(125, now);
+          osc.frequency.linearRampToValueAtTime(145, now + 0.4);
+          osc.frequency.linearRampToValueAtTime(110, now + 1.2);
+
+          osc2.frequency.setValueAtTime(250, now);
+          osc2.frequency.linearRampToValueAtTime(290, now + 0.4);
+          osc2.frequency.linearRampToValueAtTime(220, now + 1.2);
+
+          filter.type = 'lowpass';
+          filter.frequency.setValueAtTime(450, now);
+
+          gain.gain.setValueAtTime(0.001, now);
+          gain.gain.linearRampToValueAtTime(0.35 * vol, now + 0.2);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 1.3);
+
+          osc.connect(filter);
+          osc2.connect(filter);
+          filter.connect(gain);
+          gain.connect(ctx.destination);
+
+          osc.start(now);
+          osc2.start(now);
+          osc.stop(now + 1.35);
+          osc2.stop(now + 1.35);
+
+          setTimeout(onEnded, 1400);
+          break;
+        }
+
+        case 'dog':
+        case 'coyote':
+        case 'wolf': {
+          const barks = soundType === 'wolf' ? 1 : 2;
+          for (let i = 0; i < barks; i++) {
+            const startTime = now + i * 0.25;
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            const filter = ctx.createBiquadFilter();
+
+            osc.type = 'sawtooth';
+            filter.type = 'bandpass';
+            filter.frequency.setValueAtTime(600, startTime);
+            filter.frequency.exponentialRampToValueAtTime(250, startTime + 0.18);
+
+            osc.frequency.setValueAtTime(320, startTime);
+            osc.frequency.exponentialRampToValueAtTime(140, startTime + 0.18);
+
+            gain.gain.setValueAtTime(0.001, startTime);
+            gain.gain.linearRampToValueAtTime(0.4 * vol, startTime + 0.02);
+            gain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.2);
+
+            osc.connect(filter);
+            filter.connect(gain);
+            gain.connect(ctx.destination);
+
+            osc.start(startTime);
+            osc.stop(startTime + 0.22);
+          }
+          setTimeout(onEnded, 600);
+          break;
+        }
+
+        case 'cat':
+        case 'leopard':
+        case 'cheetah': {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          const filter = ctx.createBiquadFilter();
+
+          osc.type = 'sawtooth';
+          filter.type = 'lowpass';
+          filter.frequency.setValueAtTime(1200, now);
+
+          osc.frequency.setValueAtTime(500, now);
+          osc.frequency.linearRampToValueAtTime(750, now + 0.3);
+          osc.frequency.linearRampToValueAtTime(400, now + 0.8);
+
+          gain.gain.setValueAtTime(0.001, now);
+          gain.gain.linearRampToValueAtTime(0.3 * vol, now + 0.1);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.85);
+
+          osc.connect(filter);
+          filter.connect(gain);
+          gain.connect(ctx.destination);
+
+          osc.start(now);
+          osc.stop(now + 0.9);
+
+          setTimeout(onEnded, 950);
+          break;
+        }
+
+        case 'pig':
+        case 'boar':
+        case 'hippo': {
+          for (let i = 0; i < 2; i++) {
+            const startTime = now + i * 0.22;
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            const filter = ctx.createBiquadFilter();
+
+            osc.type = 'sawtooth';
+            filter.type = 'bandpass';
+            filter.frequency.setValueAtTime(450, startTime);
+            filter.Q.setValueAtTime(5, startTime);
+
+            osc.frequency.setValueAtTime(220, startTime);
+            osc.frequency.linearRampToValueAtTime(160, startTime + 0.15);
+
+            gain.gain.setValueAtTime(0.001, startTime);
+            gain.gain.linearRampToValueAtTime(0.35 * vol, startTime + 0.02);
+            gain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.16);
+
+            osc.connect(filter);
+            filter.connect(gain);
+            gain.connect(ctx.destination);
+
+            osc.start(startTime);
+            osc.stop(startTime + 0.18);
+          }
+          setTimeout(onEnded, 550);
+          break;
+        }
+
+        case 'lion':
+        case 'tiger':
+        case 'bear':
+        case 'gorilla': {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          const filter = ctx.createBiquadFilter();
+
+          osc.type = 'sawtooth';
+          filter.type = 'lowpass';
+          filter.frequency.setValueAtTime(300, now);
+          filter.frequency.linearRampToValueAtTime(500, now + 0.4);
+          filter.frequency.linearRampToValueAtTime(200, now + 1.1);
+
+          osc.frequency.setValueAtTime(110, now);
+          osc.frequency.linearRampToValueAtTime(160, now + 0.3);
+          osc.frequency.linearRampToValueAtTime(80, now + 1.2);
+
+          gain.gain.setValueAtTime(0.001, now);
+          gain.gain.linearRampToValueAtTime(0.45 * vol, now + 0.15);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 1.25);
+
+          osc.connect(filter);
+          filter.connect(gain);
+          gain.connect(ctx.destination);
+
+          osc.start(now);
+          osc.stop(now + 1.3);
+
+          setTimeout(onEnded, 1350);
+          break;
+        }
+
+        case 'elephant': {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          const filter = ctx.createBiquadFilter();
+
+          osc.type = 'sawtooth';
+          filter.type = 'bandpass';
+          filter.frequency.setValueAtTime(800, now);
+          filter.frequency.linearRampToValueAtTime(1400, now + 0.3);
+          filter.frequency.linearRampToValueAtTime(600, now + 0.9);
+
+          osc.frequency.setValueAtTime(350, now);
+          osc.frequency.linearRampToValueAtTime(550, now + 0.3);
+          osc.frequency.linearRampToValueAtTime(280, now + 0.9);
+
+          gain.gain.setValueAtTime(0.001, now);
+          gain.gain.linearRampToValueAtTime(0.4 * vol, now + 0.1);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 1.0);
+
+          osc.connect(filter);
+          filter.connect(gain);
+          gain.connect(ctx.destination);
+
+          osc.start(now);
+          osc.stop(now + 1.05);
+
+          setTimeout(onEnded, 1100);
+          break;
+        }
+
+        case 'sheep':
+        case 'goat':
+        case 'llama':
+        case 'alpaca': {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          const filter = ctx.createBiquadFilter();
+
+          osc.type = 'sawtooth';
+          filter.type = 'bandpass';
+          filter.frequency.setValueAtTime(700, now);
+
+          osc.frequency.setValueAtTime(220, now);
+          osc.frequency.linearRampToValueAtTime(240, now + 0.2);
+          osc.frequency.linearRampToValueAtTime(190, now + 0.7);
+
+          gain.gain.setValueAtTime(0.001, now);
+          gain.gain.linearRampToValueAtTime(0.3 * vol, now + 0.05);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.75);
+
+          osc.connect(filter);
+          filter.connect(gain);
+          gain.connect(ctx.destination);
+
+          osc.start(now);
+          osc.stop(now + 0.8);
+
+          setTimeout(onEnded, 850);
+          break;
+        }
+
+        case 'frog':
+        case 'toad': {
+          for (let i = 0; i < 2; i++) {
+            const startTime = now + i * 0.18;
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            const filter = ctx.createBiquadFilter();
+
+            osc.type = 'sawtooth';
+            filter.type = 'bandpass';
+            filter.frequency.setValueAtTime(400, startTime);
+            filter.Q.setValueAtTime(6, startTime);
+
+            osc.frequency.setValueAtTime(180, startTime);
+            osc.frequency.exponentialRampToValueAtTime(120, startTime + 0.12);
+
+            gain.gain.setValueAtTime(0.001, startTime);
+            gain.gain.linearRampToValueAtTime(0.35 * vol, startTime + 0.02);
+            gain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.14);
+
+            osc.connect(filter);
+            filter.connect(gain);
+            gain.connect(ctx.destination);
+
+            osc.start(startTime);
+            osc.stop(startTime + 0.15);
+          }
+          setTimeout(onEnded, 500);
+          break;
+        }
+
+        default: {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          const filter = ctx.createBiquadFilter();
+
+          osc.type = 'triangle';
+          filter.type = 'bandpass';
+          filter.frequency.setValueAtTime(600, now);
+
+          osc.frequency.setValueAtTime(400, now);
+          osc.frequency.linearRampToValueAtTime(250, now + 0.4);
+
+          gain.gain.setValueAtTime(0.001, now);
+          gain.gain.linearRampToValueAtTime(0.3 * vol, now + 0.05);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.45);
+
+          osc.connect(filter);
+          filter.connect(gain);
+          gain.connect(ctx.destination);
+
+          osc.start(now);
+          osc.stop(now + 0.5);
+
+          setTimeout(onEnded, 550);
+          break;
+        }
+      }
+    } catch {
+      onEnded();
+    }
   }
 
   public stopCurrentAudio() {
