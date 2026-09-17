@@ -194,7 +194,28 @@ class AudioEngine {
   private activeCallback: (() => void) | null = null;
 
   constructor() {
-    // Lazy initialized on first user interaction
+    if (typeof window !== 'undefined') {
+      const unlockAudio = () => {
+        try {
+          const el = this.getAudioElement();
+          if (!el.src) {
+            el.src = 'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA=';
+            el.load();
+          }
+          if (this.ctx && this.ctx.state === 'suspended') {
+            this.ctx.resume();
+          }
+        } catch {
+          // ignore
+        }
+        window.removeEventListener('touchstart', unlockAudio);
+        window.removeEventListener('touchend', unlockAudio);
+        window.removeEventListener('click', unlockAudio);
+      };
+      window.addEventListener('touchstart', unlockAudio, { passive: true });
+      window.addEventListener('touchend', unlockAudio, { passive: true });
+      window.addEventListener('click', unlockAudio, { passive: true });
+    }
   }
 
   public getActiveAnimalId(): string | null {
@@ -358,24 +379,27 @@ class AudioEngine {
     }
   }
 
-  private getCandidateUrls(filename: string): string[] {
-    const urls: string[] = [
-      `${CDN_BASE_URL}${filename}`,
-      `${RAW_BASE_URL}${filename}`,
-    ];
-    if (typeof window !== 'undefined') {
-      const origin = window.location.origin;
-      let path = window.location.pathname || '';
-      if (path.endsWith('/')) {
-        path = path.slice(0, -1);
-      }
-      if (path && path !== '/') {
-        urls.push(`${origin}${path}/assets/animals/${filename}`);
-      }
-      urls.push(`${origin}/assets/animals/${filename}`);
-      urls.push(`/assets/animals/${filename}`);
+  private sharedAudio: HTMLAudioElement | null = null;
+
+  public getAudioElement(): HTMLAudioElement {
+    if (!this.sharedAudio && typeof window !== 'undefined') {
+      this.sharedAudio = new Audio();
+      this.sharedAudio.preload = 'auto';
+      // @ts-ignore
+      this.sharedAudio.playsInline = true;
+      // @ts-ignore
+      this.sharedAudio.webkitPlaysInline = true;
     }
-    return urls;
+    return this.sharedAudio || new Audio();
+  }
+
+  private getCandidateUrls(filename: string): string[] {
+    return [
+      `https://cdn.jsdelivr.net/gh/anirxdh/JungleSafari@master/public/animals/${filename}`,
+      `https://fastly.jsdelivr.net/gh/anirxdh/JungleSafari@master/public/animals/${filename}`,
+      `https://gcore.jsdelivr.net/gh/anirxdh/JungleSafari@master/public/animals/${filename}`,
+      `https://raw.githubusercontent.com/anirxdh/JungleSafari/master/public/animals/${filename}`,
+    ];
   }
 
   // --- AUTHENTIC ANIMAL SOUND AUDIO PLAYBACK VIA EXTERNAL GLOBAL APIS & CDNS ---
@@ -482,55 +506,20 @@ class AudioEngine {
     const filename = EXTERNAL_ANIMAL_FILENAME_MAP[cleanSoundType] || 'horse.mp3';
     const candidateUrls = this.getCandidateUrls(filename);
 
-    let audioTriggered = false;
-    const triggerAudio = () => {
+    // CRITICAL FOR IPHONE (iOS SAFARI):
+    // Play authentic CDN animal audio IMMEDIATELY and SYNCHRONOUSLY within the user tap event!
+    // Calling audio.play() synchronously inside the touch/click event satisfies iOS gesture requirements.
+    // When the authentic CDN animal sound finishes, speak the animal name in young British female voice.
+    this.playAudioCandidates(sessionId, cleanSoundType, candidateUrls, 0, () => {
       if (this.currentSessionId !== sessionId) return;
-      if (audioTriggered) return;
-      audioTriggered = true;
-
-      if (this.nameSpeechTimeout) {
-        clearTimeout(this.nameSpeechTimeout);
-        this.nameSpeechTimeout = null;
+      if (animalName) {
+        this.speakText(animalName, 1.05, 1.18, () => {
+          this.finishPlayback(sessionId);
+        });
+      } else {
+        this.finishPlayback(sessionId);
       }
-      this.playAudioCandidates(sessionId, cleanSoundType, candidateUrls, 0);
-    };
-
-    // Safety timeout: proceed to sound if speech takes > 1.2s or hangs
-    this.nameSpeechTimeout = setTimeout(triggerAudio, 1200);
-
-    if ('speechSynthesis' in window) {
-      try {
-        const utterance = new SpeechSynthesisUtterance(animalName);
-        utterance.rate = 1.1;
-        utterance.pitch = 1.18;
-        utterance.volume = this.volume;
-        utterance.lang = 'en-GB';
-
-        const voice = this.findYoungBritishFemaleVoice();
-        if (voice) {
-          utterance.voice = voice;
-        }
-
-        utterance.onend = () => {
-          if (this.currentSessionId !== sessionId) return;
-          triggerAudio();
-        };
-
-        utterance.onerror = (e) => {
-          if (this.currentSessionId !== sessionId) return;
-          // If cancelled due to an animal switch, do NOT trigger old audio
-          if (e.error === 'canceled' || e.error === 'interrupted') return;
-          triggerAudio();
-        };
-
-        this.activeUtterance = utterance;
-        window.speechSynthesis.speak(utterance);
-      } catch {
-        triggerAudio();
-      }
-    } else {
-      triggerAudio();
-    }
+    });
   }
 
   // --- PLAY ANIMAL NAME, SOUND, AND FUN FACT IN ONE CONTINUOUS KIDS' AUDIO TOUR ---
@@ -577,61 +566,15 @@ class AudioEngine {
     const filename = EXTERNAL_ANIMAL_FILENAME_MAP[cleanSoundType] || 'horse.mp3';
     const candidateUrls = this.getCandidateUrls(filename);
 
-    let audioTriggered = false;
-    const triggerAudio = () => {
+    // Step 1: Play authentic CDN animal audio IMMEDIATELY in user gesture (iPhone & Android)
+    this.playAudioCandidates(sessionId, cleanSoundType, candidateUrls, 0, () => {
       if (this.currentSessionId !== sessionId) return;
-      if (audioTriggered) return;
-      audioTriggered = true;
-
-      if (this.nameSpeechTimeout) {
-        clearTimeout(this.nameSpeechTimeout);
-        this.nameSpeechTimeout = null;
-      }
-
-      // Step 2: Play animal sound, then trigger Step 3: Speak fun fact
-      this.playAudioCandidates(sessionId, cleanSoundType, candidateUrls, 0, () => {
-        if (this.currentSessionId !== sessionId) return;
-        this.speakFactNarration(sessionId, funFact, () => {
-          this.finishPlayback(sessionId);
-        });
+      // Step 2: Speak animal name and fun fact in British young female voice
+      const narrationText = `${animalName}. ${funFact}`;
+      this.speakFactNarration(sessionId, narrationText, () => {
+        this.finishPlayback(sessionId);
       });
-    };
-
-    // Step 1: Speak animal name
-    this.nameSpeechTimeout = setTimeout(triggerAudio, 1200);
-
-    if ('speechSynthesis' in window) {
-      try {
-        const utterance = new SpeechSynthesisUtterance(animalName);
-        utterance.rate = 1.05;
-        utterance.pitch = 1.18;
-        utterance.volume = this.volume;
-        utterance.lang = 'en-GB';
-
-        const voice = this.findYoungBritishFemaleVoice();
-        if (voice) {
-          utterance.voice = voice;
-        }
-
-        utterance.onend = () => {
-          if (this.currentSessionId !== sessionId) return;
-          triggerAudio();
-        };
-
-        utterance.onerror = (e) => {
-          if (this.currentSessionId !== sessionId) return;
-          if (e.error === 'canceled' || e.error === 'interrupted') return;
-          triggerAudio();
-        };
-
-        this.activeUtterance = utterance;
-        window.speechSynthesis.speak(utterance);
-      } catch {
-        triggerAudio();
-      }
-    } else {
-      triggerAudio();
-    }
+    });
   }
 
   private speakFactNarration(sessionId: number, funFact: string, onDone: () => void) {
@@ -719,15 +662,17 @@ class AudioEngine {
       }
     };
 
+    // If all CDN candidates have been tried, complete playback
     if (candidateIndex >= candidateUrls.length) {
-      this.synthesizeAnimalSound(cleanSoundType, handleSoundComplete);
+      handleSoundComplete();
       return;
     }
 
     const currentUrl = candidateUrls[candidateIndex];
     try {
-      const audio = new Audio();
-      audio.crossOrigin = 'anonymous';
+      const audio = this.getAudioElement();
+      // DO NOT set crossOrigin on HTMLAudioElement for iOS Safari
+      audio.removeAttribute('crossOrigin');
       audio.src = currentUrl;
       audio.volume = this.volume;
       this.currentAudio = audio;
@@ -738,45 +683,27 @@ class AudioEngine {
 
       audio.onerror = () => {
         if (this.currentSessionId !== sessionId) return;
-        if (soundCompleted) return;
-        soundCompleted = true;
-        if (this.audioWatchdogTimeout) {
-          clearTimeout(this.audioWatchdogTimeout);
-          this.audioWatchdogTimeout = null;
-        }
         this.playAudioCandidates(sessionId, cleanSoundType, candidateUrls, candidateIndex + 1, onSoundEnded);
       };
 
-      // Watchdog safety timeout for audio playback (max 5 seconds)
+      // Watchdog safety timeout for audio playback (max 6 seconds)
       if (this.audioWatchdogTimeout) {
         clearTimeout(this.audioWatchdogTimeout);
       }
       this.audioWatchdogTimeout = setTimeout(() => {
         handleSoundComplete();
-      }, 5000);
+      }, 6000);
 
       const playPromise = audio.play();
       if (playPromise !== undefined) {
         playPromise.catch((err) => {
           if (this.currentSessionId !== sessionId) return;
           if (err && err.name === 'AbortError') return;
-          if (soundCompleted) return;
-          soundCompleted = true;
-          if (this.audioWatchdogTimeout) {
-            clearTimeout(this.audioWatchdogTimeout);
-            this.audioWatchdogTimeout = null;
-          }
           this.playAudioCandidates(sessionId, cleanSoundType, candidateUrls, candidateIndex + 1, onSoundEnded);
         });
       }
     } catch {
       if (this.currentSessionId !== sessionId) return;
-      if (soundCompleted) return;
-      soundCompleted = true;
-      if (this.audioWatchdogTimeout) {
-        clearTimeout(this.audioWatchdogTimeout);
-        this.audioWatchdogTimeout = null;
-      }
       this.playAudioCandidates(sessionId, cleanSoundType, candidateUrls, candidateIndex + 1, onSoundEnded);
     }
   }
@@ -807,19 +734,11 @@ class AudioEngine {
     }
   }
 
-  // --- WEB AUDIO API REALISTIC ANIMAL ACOUSTIC SYNTHESIZER ---
-  private synthesizeAnimalSound(soundType: string, onEnded: () => void) {
-    const ctx = this.initContext();
-    if (!ctx) {
-      onEnded();
-      return;
-    }
-
-    const now = ctx.currentTime;
-    const vol = this.volume;
-
-    try {
-      switch (soundType) {
+  // Unused fallback
+  private synthesizeAnimalSound(_soundType: string, onEnded: () => void) {
+    onEnded();
+    return;
+    /*
         case 'chicken':
         case 'rooster': {
           const isRooster = soundType === 'rooster';
@@ -1177,6 +1096,7 @@ class AudioEngine {
     } catch {
       onEnded();
     }
+    */
   }
 
   public stopCurrentAudio() {
